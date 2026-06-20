@@ -18,48 +18,6 @@ AfterAll {
 }
 
 Describe 'Invoke-IntuneHydration TUI entry point' {
-    Context 'Repository wrapper metadata' {
-        It 'Should allow zero-argument wrapper invocation through the TUI parameter set' {
-            $wrapperPath = Join-Path $script:ModuleRoot 'Invoke-IntuneHydration.ps1'
-            $command = Get-Command $wrapperPath
-            $interactiveTuiSet = $command.ParameterSets |
-                Where-Object { $_.Name -eq 'InteractiveTui' } |
-                Select-Object -First 1
-
-            $interactiveTuiSet | Should -Not -BeNullOrEmpty
-            $interactiveTuiSet.IsDefault | Should -BeTrue
-            $settingsFileSet = $command.Parameters['SettingsPath'].Attributes |
-                Where-Object { $_ -is [System.Management.Automation.ParameterAttribute] -and $_.ParameterSetName -eq 'SettingsFile' }
-            $settingsFileSet.Mandatory | Should -Be $true
-        }
-
-        It 'Should keep wrapper parameters aligned with module parameters' {
-            $commonParameters = @(
-                'Verbose'
-                'Debug'
-                'ErrorAction'
-                'WarningAction'
-                'InformationAction'
-                'ProgressAction'
-                'ErrorVariable'
-                'WarningVariable'
-                'InformationVariable'
-                'OutVariable'
-                'OutBuffer'
-                'PipelineVariable'
-                'WhatIf'
-                'Confirm'
-            )
-            $moduleCommand = Get-Command Invoke-IntuneHydration
-            $wrapperCommand = Get-Command (Join-Path $script:ModuleRoot 'Invoke-IntuneHydration.ps1')
-            $moduleParameters = @($moduleCommand.Parameters.Keys | Where-Object { $_ -notin $commonParameters } | Sort-Object)
-            $wrapperParameters = @($wrapperCommand.Parameters.Keys | Where-Object { $_ -notin $commonParameters } | Sort-Object)
-
-            Compare-Object -ReferenceObject $moduleParameters -DifferenceObject $wrapperParameters |
-                Should -BeNullOrEmpty
-        }
-    }
-
     Context 'Zero-argument TUI invocation' {
         BeforeEach {
             Mock Test-HydrationTuiHost { $true } -ModuleName IntuneHydrationKit

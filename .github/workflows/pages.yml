@@ -36,6 +36,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install mkdocs mkdocs-material
 
+      - name: Generate Command Reference
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Microsoft.Graph.Authentication, platyPS -Scope CurrentUser -Force
+          Import-Module ./IntuneHydrationKit.psd1 -Force
+          Import-Module platyPS -Force
+          New-Item -Path docs/platyps -ItemType Directory -Force | Out-Null
+          New-MarkdownHelp -Module IntuneHydrationKit -OutputFolder docs/platyps -Force | Out-Null
+
       - name: Build Site
         run: mkdocs build --strict
 

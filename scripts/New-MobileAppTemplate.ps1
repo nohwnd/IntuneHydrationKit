@@ -266,18 +266,6 @@ function Get-StoreAppDetails {
     }
 }
 
-# Keep old function name as alias for backward compatibility
-function Get-StoreAppIcon {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]
-        [string]$PackageIdentifier
-    )
-
-    $details = Get-StoreAppDetails -PackageIdentifier $PackageIdentifier
-    return $details.Icon
-}
-
 #endregion
 
 #region Main Logic

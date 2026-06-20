@@ -383,10 +383,10 @@ For normal interactive use, choose **Dry-run create** in the TUI. For automation
 
 ```powershell
 # Parameter mode
-./Invoke-IntuneHydration.ps1 -TenantId "guid" -Interactive -Create -All -WhatIf
+Invoke-IntuneHydration -TenantId "guid" -Interactive -Create -All -WhatIf
 
 # Settings file mode
-./Invoke-IntuneHydration.ps1 -SettingsPath ./settings.json -WhatIf
+Invoke-IntuneHydration -SettingsPath ./settings.json -WhatIf
 ```
 
 ---
@@ -477,7 +477,7 @@ Install-Module Microsoft.Graph.Authentication -Force
 │   ├── StaticGroups/
 │   ├── MobileApps/
 │   └── Notifications/
-├── Tests/                         # 67 Pester test files
+├── Tests/                         # Pester test files
 ├── docs/                          # MkDocs and PlatyPS reference docs
 └── scripts/                       # Maintenance and assignment helpers
 ```

@@ -111,7 +111,7 @@ All CA policies are imported with state forced to `disabled`. They must be manua
 
 ### Testing
 - Pester v5 with `BeforeAll`, `Describe`, `Context`, `It`
-- Test files mirror module structure: `Tests/Public/` and `Tests/Private/` (64 test files, 860+ tests)
+- Test files mirror module structure: `Tests/Public/` and `Tests/Private/`
 - Use `Mock` for external dependencies (e.g., `Invoke-MgGraphRequest`)
 - Import the module in test `BeforeAll` blocks with `Import-Module ./IntuneHydrationKit.psd1 -Force`
 - Run single test files directly with `Invoke-Pester -Path ./Tests/Public/Connect-IntuneHydration.Tests.ps1 -Output Detailed`

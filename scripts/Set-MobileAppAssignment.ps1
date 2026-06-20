@@ -2,45 +2,65 @@
 
 <#
 .SYNOPSIS
-    Assigns all Intune apps as required on all devices.
-
+    Adds a broad Intune mobile app assignment.
 .DESCRIPTION
-    Queries Microsoft Intune mobile apps, preserves any existing assignments, and adds
-    a Required assignment targeting All Devices when one does not already exist.
-    Supports -WhatIf for dry-run validation.
-
+    Queries Intune mobile apps, preserves existing assignments, and adds one
+    assignment when the selected target is not already assigned.
+.PARAMETER Intent
+    Assignment intent to add.
+.PARAMETER Target
+    Assignment target to add.
 .PARAMETER AppTypes
-    Mobile app @odata.type values to include. Defaults to common deployable app types.
-
+    Mobile app @odata.type values to include. Defaults to Windows apps for
+    available/allUsers and common deployable app types otherwise.
 .EXAMPLE
-    ./scripts/Set-AllAppsRequiredOnAllDevices.ps1 -WhatIf
-
+    ./Scripts/Set-MobileAppAssignment.ps1 -WhatIf
 .EXAMPLE
-    ./scripts/Set-AllAppsRequiredOnAllDevices.ps1
+    ./Scripts/Set-MobileAppAssignment.ps1 -Intent required -Target allDevices -WhatIf
 #>
 
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [Parameter()]
+    [ValidateSet('available', 'required')]
+    [string]$Intent = 'available',
+
+    [Parameter()]
+    [ValidateSet('allUsers', 'allDevices')]
+    [string]$Target = 'allUsers',
+
+    [Parameter()]
     [ValidateNotNullOrEmpty()]
-    [string[]]$AppTypes = @(
-        '#microsoft.graph.win32LobApp',
-        '#microsoft.graph.winGetApp',
-        '#microsoft.graph.microsoftStoreForBusinessApp',
-        '#microsoft.graph.officeSuiteApp',
-        '#microsoft.graph.windowsMicrosoftEdgeApp',
-        '#microsoft.graph.windowsUniversalAppX',
-        '#microsoft.graph.iosStoreApp',
-        '#microsoft.graph.iosLobApp',
-        '#microsoft.graph.managedIOSStoreApp',
-        '#microsoft.graph.androidStoreApp',
-        '#microsoft.graph.androidLobApp',
-        '#microsoft.graph.managedAndroidStoreApp',
-        '#microsoft.graph.macOSLobApp',
-        '#microsoft.graph.macOSDmgApp',
-        '#microsoft.graph.macOSPkgApp'
-    )
+    [string[]]$AppTypes
 )
+
+$windowsAppTypes = @(
+    '#microsoft.graph.win32LobApp'
+    '#microsoft.graph.winGetApp'
+    '#microsoft.graph.microsoftStoreForBusinessApp'
+    '#microsoft.graph.officeSuiteApp'
+    '#microsoft.graph.windowsMicrosoftEdgeApp'
+    '#microsoft.graph.windowsUniversalAppX'
+)
+
+if (-not $PSBoundParameters.ContainsKey('AppTypes')) {
+    $AppTypes = if ($Intent -eq 'available' -and $Target -eq 'allUsers') {
+        $windowsAppTypes
+    } else {
+        @(
+            $windowsAppTypes
+            '#microsoft.graph.iosStoreApp'
+            '#microsoft.graph.iosLobApp'
+            '#microsoft.graph.managedIOSStoreApp'
+            '#microsoft.graph.androidStoreApp'
+            '#microsoft.graph.androidLobApp'
+            '#microsoft.graph.managedAndroidStoreApp'
+            '#microsoft.graph.macOSLobApp'
+            '#microsoft.graph.macOSDmgApp'
+            '#microsoft.graph.macOSPkgApp'
+        )
+    }
+}
 
 function Connect-AssignmentGraph {
     [CmdletBinding()]
@@ -151,46 +171,36 @@ function Get-MobileAppAssignment {
     return @($response.value)
 }
 
-function Get-RequiredAssignmentSetting {
+function Get-MobileAppAssignmentSetting {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
         [string]$MobileAppType,
+
+        [Parameter(Mandatory)]
+        [string]$Intent,
 
         [Parameter()]
         [AllowNull()]
         [object[]]$ExistingAssignments
     )
 
-    # Reuse settings from an existing required assignment if present
-    $existingRequired = @($ExistingAssignments | Where-Object { $_.intent -eq 'required' } | Select-Object -First 1)
-    if ($existingRequired.Count -gt 0 -and $null -ne $existingRequired[0].settings) {
-        $settings = ConvertTo-PlainValue -InputObject $existingRequired[0].settings
-        if ($settings -is [System.Collections.IDictionary]) {
-            foreach ($readOnlyKey in @('id', 'lastModifiedDateTime')) {
-                if ($settings.Contains($readOnlyKey)) {
-                    $null = $settings.Remove($readOnlyKey)
-                }
-            }
-        }
-
-        return $settings
+    $matchingAssignment = @($ExistingAssignments | Where-Object { $_.intent -eq $Intent } | Select-Object -First 1)
+    if ($matchingAssignment.Count -gt 0 -and $null -ne $matchingAssignment[0].settings) {
+        return ConvertTo-WritableAssignmentSetting -Settings $matchingAssignment[0].settings
     }
 
-    switch ($MobileAppType) {
-        '#microsoft.graph.win32LobApp' {
-            return @{
-                '@odata.type'                = '#microsoft.graph.win32LobAppAssignmentSettings'
-                notifications                = 'showAll'
-                deliveryOptimizationPriority = 'notConfigured'
-                installTimeSettings          = $null
-                restartSettings              = $null
-            }
-        }
-        default {
-            return $null
+    if ($MobileAppType -eq '#microsoft.graph.win32LobApp') {
+        return @{
+            '@odata.type'                = '#microsoft.graph.win32LobAppAssignmentSettings'
+            notifications                = 'showAll'
+            deliveryOptimizationPriority = 'notConfigured'
+            installTimeSettings          = $null
+            restartSettings              = $null
         }
     }
+
+    return $null
 }
 
 function ConvertTo-WritableAssignmentSetting {
@@ -230,7 +240,7 @@ function ConvertTo-MobileAppAssignmentPayload {
     }
 }
 
-function Set-AppRequiredAssignment {
+function Set-MobileAppAssignment {
     [CmdletBinding(SupportsShouldProcess)]
     param(
         [Parameter(Mandatory)]
@@ -243,29 +253,34 @@ function Set-AppRequiredAssignment {
 
         [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
-        [string]$MobileAppType
+        [string]$MobileAppType,
+
+        [Parameter(Mandatory)]
+        [string]$Intent,
+
+        [Parameter(Mandatory)]
+        [string]$TargetType,
+
+        [Parameter(Mandatory)]
+        [string]$TargetLabel
     )
 
     $existingAssignments = Get-MobileAppAssignment -AppId $AppId
-
-    # Skip if already has a Required assignment targeting All Devices
-    $existingRequired = @(
+    $matchingAssignment = @(
         $existingAssignments | Where-Object {
-            $_.intent -eq 'required' -and
-            $_.target.'@odata.type' -eq '#microsoft.graph.allDevicesAssignmentTarget'
+            $_.intent -eq $Intent -and $_.target.'@odata.type' -eq $TargetType
         }
     )
 
-    if ($existingRequired.Count -gt 0) {
+    if ($matchingAssignment.Count -gt 0) {
         return [PSCustomObject]@{
             Name   = $AppName
             Type   = $MobileAppType
             Status = 'Skipped'
-            Reason = 'Already required on All Devices'
+            Reason = "Already $Intent on $TargetLabel"
         }
     }
 
-    # Build the assignment list: preserve existing + add the new required assignment
     $assignmentPayload = [System.Collections.Generic.List[object]]::new()
     foreach ($assignment in $existingAssignments) {
         $assignmentPayload.Add((ConvertTo-MobileAppAssignmentPayload -Assignment $assignment))
@@ -273,14 +288,15 @@ function Set-AppRequiredAssignment {
 
     $assignmentPayload.Add(@{
             '@odata.type' = '#microsoft.graph.mobileAppAssignment'
-            intent        = 'required'
+            intent        = $Intent
             target        = @{
-                '@odata.type' = '#microsoft.graph.allDevicesAssignmentTarget'
+                '@odata.type' = $TargetType
             }
-            settings      = Get-RequiredAssignmentSetting -MobileAppType $MobileAppType -ExistingAssignments $existingAssignments
+            settings      = Get-MobileAppAssignmentSetting -MobileAppType $MobileAppType -Intent $Intent -ExistingAssignments $existingAssignments
         })
 
-    if (-not $PSCmdlet.ShouldProcess($AppName, 'Assign as Required on All Devices')) {
+    $action = "Assign as $Intent on $TargetLabel"
+    if (-not $PSCmdlet.ShouldProcess($AppName, $action)) {
         return [PSCustomObject]@{
             Name   = $AppName
             Type   = $MobileAppType
@@ -303,7 +319,16 @@ function Set-AppRequiredAssignment {
     }
 }
 
-# --- Main ---
+$targetInfo = @{
+    allDevices = @{
+        Type  = '#microsoft.graph.allDevicesAssignmentTarget'
+        Label = 'All Devices'
+    }
+    allUsers   = @{
+        Type  = '#microsoft.graph.allLicensedUsersAssignmentTarget'
+        Label = 'All Users'
+    }
+}[$Target]
 
 Connect-AssignmentGraph
 
@@ -313,9 +338,9 @@ if ($apps.Count -eq 0) {
     return
 }
 
-$results = foreach ($app in $apps) {
+foreach ($app in $apps) {
     try {
-        Set-AppRequiredAssignment -AppId $app.id -AppName $app.displayName -MobileAppType $app.'@odata.type'
+        Set-MobileAppAssignment -AppId $app.id -AppName $app.displayName -MobileAppType $app.'@odata.type' -Intent $Intent -TargetType $targetInfo.Type -TargetLabel $targetInfo.Label
     } catch {
         [PSCustomObject]@{
             Name   = [string]$app.displayName
@@ -325,5 +350,3 @@ $results = foreach ($app in $apps) {
         }
     }
 }
-
-$results

@@ -1,6 +1,7 @@
 # Build output
 /build/
 site/
+docs/platyps/
 
 # Python virtual environments
 .venv-docs/

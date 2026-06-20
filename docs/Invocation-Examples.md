@@ -317,14 +317,6 @@ Enable verbose logging in settings:
 }
 ```
 
-## Cloned Repository
-
-Use the same commands above with the wrapper script:
-
-```powershell
-./Invoke-IntuneHydration.ps1
-```
-
 ## WinGet App Templates
 
 By default, `mobileApps` with `Windows` imports the full bundled Windows catalog. To import only specific bundled WinGet-backed apps, provide template IDs:

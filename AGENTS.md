@@ -66,10 +66,10 @@ Copy-Item settings.example.json settings.json
 # Edit settings.json with your tenant details
 
 # Dry-run mode (validates without writing to Graph)
-pwsh ./Invoke-IntuneHydration.ps1 -SettingsPath ./settings.json -WhatIf
+Invoke-IntuneHydration -SettingsPath ./settings.json -WhatIf
 
 # Live run with force update
-pwsh ./Invoke-IntuneHydration.ps1 -SettingsPath ./settings.json -Force
+Invoke-IntuneHydration -SettingsPath ./settings.json -Force
 
 # Parameter-based invocation (no settings file)
 Invoke-IntuneHydration -TenantId "guid" -Interactive -Create -All -WhatIf
@@ -83,14 +83,13 @@ Invoke-IntuneHydration -Interactive -Create -TenantId "guid" -All
 
 ### Entry Point
 
-- `Invoke-IntuneHydration.ps1` - Wrapper script (backward compatibility for cloned repo)
-- `Public/Orchestration/Invoke-IntuneHydration.ps1` - Main orchestrator function (used when installed from PSGallery)
+- `Public/Orchestration/Invoke-IntuneHydration.ps1` - Main orchestrator function
 
 ### Module Structure
 
 - `IntuneHydrationKit.psd1` / `IntuneHydrationKit.psm1` - Module manifest and loader (dot-sources Public/Private)
 - `Public/` - 19 exported public functions (one file per function)
-- `Private/` - 95 internal helper functions
+- `Private/` - Internal helper functions
 
 ### Module-Level State
 
@@ -126,14 +125,13 @@ All JSON templates for import operations:
 - `scripts/Compare-OpenIntuneBaseline.ps1` - Compare baseline versions
 - `scripts/Export-ConditionalAccessTemplates.ps1` - Export CA templates from tenant
 - `scripts/Format-AllFiles.ps1` - Code formatting utility
-- `scripts/Set-AllAppsRequiredOnAllDevices.ps1` - Assign apps as required for all devices
-- `scripts/Set-WindowsAppsAvailableToAllUsers.ps1` - Assign Windows apps as available for all users
+- `scripts/Set-MobileAppAssignment.ps1` - Assign mobile apps to broad Intune targets
 
 ### Test Structure
 
-Tests mirror the module structure (64 test files, 860+ tests):
-- `Tests/Public/` - 19 test files for public functions
-- `Tests/Private/` - 45 test files for private helper functions
+Tests mirror the module structure:
+- `Tests/Public/` - Tests for public functions
+- `Tests/Private/` - Tests for private helper functions
 
 ### Output
 
