@@ -32,6 +32,9 @@ function Test-IntunePrerequisites {
         [string[]]$BaselinePlatforms = @('All'),
 
         [Parameter()]
+        [object]$WorkloadPlatforms,
+
+        [Parameter()]
         [string[]]$RequiredScopes
     )
 
@@ -48,7 +51,8 @@ function Test-IntunePrerequisites {
         Get-HydrationGraphScopes `
             -Imports $Imports `
             -MobileAppConfiguration $MobileAppConfiguration `
-            -MobileAppPlatforms $MobileAppPlatforms
+            -MobileAppPlatforms $MobileAppPlatforms `
+            -WorkloadPlatforms $WorkloadPlatforms
     }
 
     try {
@@ -146,7 +150,8 @@ function Test-IntunePrerequisites {
                     -MobileAppConfiguration $MobileAppConfiguration `
                     -MobileAppPlatforms $MobileAppPlatforms `
                     -AppProtectionPlatforms $AppProtectionPlatforms `
-                    -BaselinePlatforms $BaselinePlatforms)
+                    -BaselinePlatforms $BaselinePlatforms `
+                    -WorkloadPlatforms $WorkloadPlatforms)
             if ($workloadAccessIssues.Count -gt 0) {
                 $issues += $workloadAccessIssues
             }

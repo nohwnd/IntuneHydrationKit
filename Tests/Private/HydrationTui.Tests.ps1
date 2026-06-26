@@ -131,11 +131,12 @@ Describe 'Hydration TUI helpers' {
 
     It 'Should map selected target numbers to the existing imports shape' {
         InModuleScope IntuneHydrationKit {
-            $imports = & $script:NewTestHydrationTuiImportMap -Number @(1, 3, 11)
+            $imports = & $script:NewTestHydrationTuiImportMap -Number @(1, 3, 11, 12)
 
             $imports.dynamicGroups | Should -BeTrue
             $imports.deviceFilters | Should -BeTrue
             $imports.mobileApps | Should -BeTrue
+            $imports.linuxScripts | Should -BeTrue
             $imports.staticGroups | Should -BeFalse
             $imports.cisBaselines | Should -BeFalse
         }

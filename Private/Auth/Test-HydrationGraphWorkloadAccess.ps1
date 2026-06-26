@@ -14,7 +14,10 @@ function Test-HydrationGraphWorkloadAccess {
         [string[]]$AppProtectionPlatforms = @('All'),
 
         [Parameter()]
-        [string[]]$BaselinePlatforms = @('All')
+        [string[]]$BaselinePlatforms = @('All'),
+
+        [Parameter()]
+        [object]$WorkloadPlatforms
     )
 
     $issues = [System.Collections.Generic.List[string]]::new()
@@ -23,7 +26,8 @@ function Test-HydrationGraphWorkloadAccess {
         -MobileAppConfiguration $MobileAppConfiguration `
         -MobileAppPlatforms $MobileAppPlatforms `
         -AppProtectionPlatforms $AppProtectionPlatforms `
-        -BaselinePlatforms $BaselinePlatforms
+        -BaselinePlatforms $BaselinePlatforms `
+        -WorkloadPlatforms $WorkloadPlatforms
 
     foreach ($probe in $probes) {
         try {

@@ -60,12 +60,14 @@ function Invoke-IntuneHydration {
         Process Conditional Access starter pack policies
     .PARAMETER MobileApps
         Process mobile app templates
+    .PARAMETER LinuxScripts
+        Process Linux shell script templates
     .PARAMETER All
         Enable all targets
     .PARAMETER Platform
         Filter imports by platform. Valid values: Windows, macOS, iOS, Android, Linux, All.
         Defaults to 'All' which imports resources for all platforms.
-        This affects: ComplianceTemplates, DeviceFilters, AppProtection, MobileApps, EnrollmentProfiles, OpenIntuneBaseline.
+        This affects: ComplianceTemplates, DeviceFilters, AppProtection, MobileApps, EnrollmentProfiles, OpenIntuneBaseline, LinuxScripts.
         Cross-platform resources (DynamicGroups, StaticGroups, ConditionalAccess, NotificationTemplates) are not filtered.
     .PARAMETER ReportOutputPath
         Output directory for reports
@@ -196,6 +198,10 @@ function Invoke-IntuneHydration {
 
         [Parameter(ParameterSetName = 'Interactive')]
         [Parameter(ParameterSetName = 'ServicePrincipal')]
+        [switch]$LinuxScripts,
+
+        [Parameter(ParameterSetName = 'Interactive')]
+        [Parameter(ParameterSetName = 'ServicePrincipal')]
         [switch]$All,
 
         # Platform filter - available for all parameter sets
@@ -279,6 +285,7 @@ function Invoke-IntuneHydration {
             ConditionalAccess     = $ConditionalAccess
             MobileApps            = $MobileApps
             CISBaselines          = $CISBaselines
+            LinuxScripts          = $LinuxScripts
             All                   = $All
             ReportOutputPath      = $ReportOutputPath
             ReportFormats         = $ReportFormats
@@ -385,7 +392,7 @@ function Invoke-IntuneHydration {
             -Create:$createEnabled `
             -Delete:$deleteEnabled `
             -MobileAppConfiguration $preflightMobileAppConfiguration `
-            -MobileAppPlatforms $platformFilters.MobileApps
+            -WorkloadPlatforms $platformFilters
         if ($settings.authentication.mode -ne 'clientSecret') {
             $authParams['Scopes'] = $requiredGraphScopes
             $authParams['ForceConsent'] = [bool]$settings.options.forceConsent
@@ -409,9 +416,7 @@ function Invoke-IntuneHydration {
         Test-IntunePrerequisites `
             -Imports $settings.imports `
             -MobileAppConfiguration $preflightMobileAppConfiguration `
-            -MobileAppPlatforms $platformFilters.MobileApps `
-            -AppProtectionPlatforms $platformFilters.AppProtection `
-            -BaselinePlatforms $platformFilters.Baseline `
+            -WorkloadPlatforms $platformFilters `
             -RequiredScopes $requiredGraphScopes `
             -Verbose:$effectiveVerboseEnabled | Out-Null
 
@@ -528,6 +533,25 @@ function Invoke-IntuneHydration {
             }
             $complianceResults = @((Import-IntuneCompliancePolicy @complianceParams) | Where-Object { $null -ne $_ })
             $allResults += $complianceResults
+        }
+
+        # Step 6b: Linux Scripts
+        if ($settings.imports.linuxScripts -and $platformFilters.LinuxScripts.Count -gt 0) {
+            $stepAction = if ($RemoveExisting) { "Deleting" } else { "Importing" }
+            $logParams = @{
+                Message = "Step 6b: $stepAction Linux scripts"
+                Level   = 'Info'
+            }
+            Write-HydrationLog @logParams
+
+            $linuxScriptParams = @{
+                Platform       = $platformFilters.LinuxScripts
+                RemoveExisting = $RemoveExisting
+                WhatIf         = $effectiveWhatIfEnabled
+                Verbose        = $effectiveVerboseEnabled
+            }
+            $linuxScriptResults = @((Import-IntuneLinuxScript @linuxScriptParams) | Where-Object { $null -ne $_ })
+            $allResults += $linuxScriptResults
         }
 
         # Step 7: Notification Templates

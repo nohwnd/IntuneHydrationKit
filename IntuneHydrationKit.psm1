@@ -92,6 +92,7 @@ $publicFunctions = @(
     'Import-IntuneConditionalAccessPolicy',
     'Import-IntuneMobileApp',
     'Import-IntuneWinGetApp',
+    'Import-IntuneLinuxScript',
     # Helper functions
     'Initialize-HydrationLogging',
     'Write-HydrationLog',

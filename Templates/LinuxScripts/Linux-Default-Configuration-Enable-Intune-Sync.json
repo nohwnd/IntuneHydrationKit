@@ -1,0 +1,14 @@
+{
+  "displayName": "Linux - Default - Configuration - Enable Intune Sync",
+  "description": "Linux configuration script from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/configuration/enable_intune_sync.sh",
+  "fileName": "enable_intune_sync.sh",
+  "platform": "Linux",
+  "runAsAccount": "system",
+  "executionFrequency": "PT0S",
+  "retryCount": 3,
+  "blockExecutionNotifications": false,
+  "roleScopeTagIds": [
+    "0"
+  ],
+  "scriptContentBase64": "IyEvYmluL2Jhc2gKCiMgVGhpcyBzY3JpcHQgY3JlYXRlcyBhbiBleGVjdXRhYmxlIGhlbHBlciBzY3JpcHQgdG8gcnVuIHRoZSBNaWNyb3NvZnQgSW50dW5lIGFnZW50CiMgYW5kIHNjaGVkdWxlcyBpdCBhcyBhIGNyb24gam9iIHRvIHJ1biBhdXRvbWF0aWNhbGx5IGV2ZXJ5IHggaG91cnMuCgojIERlZmluZSB0aGUgcGF0aCBmb3IgdGhlIEludHVuZSBhZ2VudCBydW5uZXIgc2NyaXB0CklOVFVORV9SVU5ORVJfU0NSSVBUX1BBVEg9Ii91c3IvbG9jYWwvYmluL3J1bl9pbnR1bmVfYWdlbnQuc2giCgojIENyZWF0ZSB0aGUgcnVubmVyIHNjcmlwdApjYXQgPDwgJ0VPRicgPiAkSU5UVU5FX1JVTk5FUl9TQ1JJUFRfUEFUSAojIS9iaW4vYmFzaAoKIyBSdW4gdGhlIEludHVuZSBhZ2VudAovb3B0L21pY3Jvc29mdC9pbnR1bmUvYmluL2ludHVuZS1hZ2VudApFT0YKCiMgTWFrZSB0aGUgc2NyaXB0IGV4ZWN1dGFibGUKY2htb2QgK3ggJElOVFVORV9SVU5ORVJfU0NSSVBUX1BBVEgKCiMgRGVmaW5lIHRoZSBjcm9uIGxpbmUgKGV2ZXJ5IDQgaG91cnMsIGV2ZXJ5IGRheSkKQ1JPTl9MSU5FPSIwICovMSAqICogKiAkSU5UVU5FX1JVTk5FUl9TQ1JJUFRfUEFUSCIKCiMgU2NoZWR1bGUgdGhlIGNyb24gam9iLCBpZ25vcmluZyBkdXBsaWNhdGVzIChlbnN1cmVzIG9ubHkgb25lIGlkZW50aWNhbCBlbnRyeSBleGlzdHMpCihjcm9udGFiIC1sIDI+L2Rldi9udWxsIHwgZ3JlcCAtRnYgIiRDUk9OX0xJTkUiOyBlY2hvICIkQ1JPTl9MSU5FIikgfCBjcm9udGFiIC0="
+}

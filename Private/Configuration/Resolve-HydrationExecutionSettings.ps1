@@ -74,6 +74,9 @@ function Resolve-HydrationExecutionSettings {
         [switch]$CISBaselines,
 
         [Parameter()]
+        [switch]$LinuxScripts,
+
+        [Parameter()]
         [switch]$All,
 
         [Parameter()]
@@ -173,6 +176,7 @@ function Resolve-HydrationExecutionSettings {
         notificationTemplates = $All.IsPresent -or $NotificationTemplates.IsPresent
         mobileApps            = $All.IsPresent -or $MobileApps.IsPresent
         cisBaselines          = $All.IsPresent -or $CISBaselines.IsPresent
+        linuxScripts          = $All.IsPresent -or $LinuxScripts.IsPresent
     }
 
     if ($All.IsPresent) {

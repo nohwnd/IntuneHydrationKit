@@ -89,6 +89,19 @@ gh workflow run "OpenIntuneBaseline Parity Check" --ref main
 | Weekly schedule | Automatic Mondays at 13:00 UTC | compare |
 | Manual parity check | `gh workflow run "OpenIntuneBaseline Parity Check"` | compare |
 
+### 6. Weekly IntuneLinuxBaseline Parity Check
+
+Runs every Monday and compares bundled Linux compliance and configuration script templates with `jorgeasaurus/IntuneLinuxBaseline`. If differences are found, the workflow creates an issue titled **Update bundled IntuneLinuxBaseline templates** or comments on the existing open issue.
+
+```bash
+gh workflow run "IntuneLinuxBaseline Parity Check" --ref main
+```
+
+| Scenario | Command | Jobs Run |
+|----------|---------|----------|
+| Weekly schedule | Automatic Mondays at 13:30 UTC | compare |
+| Manual parity check | `gh workflow run "IntuneLinuxBaseline Parity Check"` | compare |
+
 ## Monitoring Workflow Runs
 
 ```bash

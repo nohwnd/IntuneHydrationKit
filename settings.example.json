@@ -28,7 +28,8 @@
         "deviceFilters": true,
         "conditionalAccess": true,
         "mobileApps": true,
-        "cisBaselines": false
+        "cisBaselines": false,
+        "linuxScripts": true
     },
     "mobileApps": {
         "presetId": null,

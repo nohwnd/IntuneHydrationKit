@@ -1,0 +1,44 @@
+{
+  "displayName": "Linux - Default - Compliance - Secure Boot",
+  "name": "Linux - Default - Compliance - Secure Boot",
+  "description": "Linux custom compliance from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/compliance/secure_boot_discovery.sh",
+  "platforms": "linux",
+  "technologies": "linuxMdm",
+  "roleScopeTagIds": [
+    "0"
+  ],
+  "settings": [],
+  "deviceCompliancePolicyScript": {},
+  "deviceCompliancePolicyScriptDefinition": {
+    "displayName": "Linux - Default - Compliance Script - Secure Boot",
+    "description": "Discovery script from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/compliance/secure_boot_discovery.sh",
+    "detectionScriptContentBase64": "IyEvYmluL2Jhc2gKCiMgSW50dW5lIExpbnV4IGN1c3RvbSBjb21wbGlhbmNlIGRpc2NvdmVyeSBzY3JpcHRzIHNob3VsZCBhdm9pZCBpbnRlcmFjdGl2ZSBwcm9tcHRzLgojIFByZWZlciBtb2t1dGlsIGJlY2F1c2UgVWJ1bnR1IGRvY3VtZW50cyBpdCBhcyB0aGUgc3RhbmRhcmQgd2F5IHRvIHNob3cgU2VjdXJlIEJvb3Qgc3RhdGUuCgpTRUNVUkVfQk9PVF9FTkFCTEVEPWZhbHNlCk1PS1VUSUxfQklOPSIvdXNyL2Jpbi9tb2t1dGlsIgpFRklfU0VDVVJFQk9PVF9WQVI9Ii9zeXMvZmlybXdhcmUvZWZpL2VmaXZhcnMvU2VjdXJlQm9vdC04YmU0ZGY2MS05M2NhLTExZDItYWEwZC0wMGUwOTgwMzJiOGMiCgojIEZhbGwgYmFjayB0byBQQVRIIGlmIG1va3V0aWwgaXNuJ3QgaW4gL3Vzci9iaW4KaWYgWyAhIC14ICIkTU9LVVRJTF9CSU4iIF07IHRoZW4KICAgIE1PS1VUSUxfQklOPSIkKGNvbW1hbmQgLXYgbW9rdXRpbCAyPi9kZXYvbnVsbCB8fCB0cnVlKSIKZmkKCiMgSWYgdGhlIGRldmljZSBkaWRuJ3QgYm9vdCBpbiBVRUZJIG1vZGUsIFNlY3VyZSBCb290IGNhbid0IGJlIGVuYWJsZWQuCmlmIFsgLWQgL3N5cy9maXJtd2FyZS9lZmkgXTsgdGhlbgogICAgIyBQcmVmZXIgbW9rdXRpbCBiZWNhdXNlIGl0IHJldHVybnMgYSBzdHJhaWdodGZvcndhcmQgU2VjdXJlIEJvb3Qgc3RhdGUgc3RyaW5nLgogICAgaWYgWyAtbiAiJE1PS1VUSUxfQklOIiBdICYmIFsgLXggIiRNT0tVVElMX0JJTiIgXTsgdGhlbgogICAgICAgIFNCX1NUQVRFPSIkKCRNT0tVVElMX0JJTiAtLXNiLXN0YXRlIDI+L2Rldi9udWxsIHwgdHIgJ1s6dXBwZXI6XScgJ1s6bG93ZXI6XScpIgoKICAgICAgICBpZiBwcmludGYgJyVzJyAiJFNCX1NUQVRFIiB8IGdyZXAgLXEgJ3NlY3VyZWJvb3QgZW5hYmxlZCc7IHRoZW4KICAgICAgICAgICAgU0VDVVJFX0JPT1RfRU5BQkxFRD10cnVlCiAgICAgICAgZmkKICAgIGZpCgogICAgIyBGYWxsYmFjazogcmVhZCB0aGUgVUVGSSBTZWN1cmVCb290IHZhcmlhYmxlIGRpcmVjdGx5IHdoZW4gaXQgaXMgcmVhZGFibGUuCiAgICAjIFRoZSBmaXJzdCA0IGJ5dGVzIGFyZSBFRkkgYXR0cmlidXRlcyBhbmQgdGhlIDV0aCBieXRlIGlzIHRoZSB2YWx1ZTogMSA9IGVuYWJsZWQsIDAgPSBkaXNhYmxlZC4KICAgIGlmIFsgIiRTRUNVUkVfQk9PVF9FTkFCTEVEIiA9IGZhbHNlIF0gJiYgWyAtciAiJEVGSV9TRUNVUkVCT09UX1ZBUiIgXTsgdGhlbgogICAgICAgIFNCX1ZBTFVFPSIkKG9kIC1BbiAtdCB1MSAtaiA0IC1OIDEgIiRFRklfU0VDVVJFQk9PVF9WQVIiIDI+L2Rldi9udWxsIHwgdHIgLWQgJ1s6c3BhY2U6XScpIgoKICAgICAgICBpZiBbICIkU0JfVkFMVUUiID0gIjEiIF07IHRoZW4KICAgICAgICAgICAgU0VDVVJFX0JPT1RfRU5BQkxFRD10cnVlCiAgICAgICAgZmkKICAgIGZpCmZpCgojIEludHVuZSBleHBlY3RzIHNpbmdsZS1saW5lIEpTT04gd2hvc2UgcHJvcGVydHkgbmFtZXMgbWF0Y2ggU2V0dGluZ05hbWUgdmFsdWVzLgpwcmludGYgJ3siU2VjdXJlQm9vdEVuYWJsZWQiOiVzfVxuJyAiJFNFQ1VSRV9CT09UX0VOQUJMRUQi",
+    "enforceSignatureCheck": false,
+    "publisher": "Intune Hydration Kit",
+    "runAs32Bit": false,
+    "runAsAccount": "user",
+    "rules": {
+      "Rules": [
+        {
+          "SettingName": "SecureBootEnabled",
+          "Operator": "IsEquals",
+          "DataType": "Boolean",
+          "Operand": true,
+          "MoreInfoUrl": "https://documentation.ubuntu.com/security/security-features/platform-protections/secure-boot/",
+          "RemediationStrings": [
+            {
+              "Language": "en_US",
+              "Title": "Secure Boot must be enabled.",
+              "Description": "Enable UEFI Secure Boot in firmware for this Ubuntu device. Your organization requires Secure Boot to be turned on."
+            },
+            {
+              "Language": "de_DE",
+              "Title": "Secure Boot muss aktiviert sein.",
+              "Description": "Aktivieren Sie UEFI Secure Boot in der Firmware dieses Ubuntu-Geräts. Ihre Organisation verlangt, dass Secure Boot eingeschaltet ist."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "displayName": "Linux - Default - Configuration - Set Device Name",
+  "description": "Linux configuration script from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/configuration/set_device_name.sh",
+  "fileName": "set_device_name.sh",
+  "platform": "Linux",
+  "runAsAccount": "system",
+  "executionFrequency": "PT0S",
+  "retryCount": 3,
+  "blockExecutionNotifications": false,
+  "roleScopeTagIds": [
+    "0"
+  ],
+  "scriptContentBase64": "IyEvYmluL2Jhc2gKCiMgVGhpcyBzY3JpcHQgcmV0cmlldmVzIHRoZSBkZXZpY2Ugc2VyaWFsIG51bWJlciwgdXNlcyBpdCB0byBjcmVhdGUgYSBuZXcgaG9zdG5hbWUsCiMgYW5kIHVwZGF0ZXMgdGhlIHN5c3RlbSBob3N0bmFtZSBjb25maWd1cmF0aW9uIGZpbGVzIHRvIGFwcGx5IHRoZSBuZXcgZGV2aWNlIG5hbWUuCgojIEdldCB0aGUgZGV2aWNlJ3Mgc2VyaWFsIG51bWJlcgpTRVJJQUxfTlVNQkVSPSQoc3VkbyBkbWlkZWNvZGUgLXMgc3lzdGVtLXNlcmlhbC1udW1iZXIpCgojIERlZmluZSB0aGUgbmV3IGRldmljZSBuYW1lIHdpdGggdGhlIHNlcmlhbCBudW1iZXIgYXBwZW5kZWQKTkVXX0hPU1ROQU1FPSJDLSRTRVJJQUxfTlVNQkVSIgoKIyBDaGFuZ2UgdGhlIGhvc3RuYW1lCnN1ZG8gaG9zdG5hbWVjdGwgc2V0LWhvc3RuYW1lICRORVdfSE9TVE5BTUUKCiMgVXBkYXRlIC9ldGMvaG9zdG5hbWUKZWNobyAkTkVXX0hPU1ROQU1FIHwgc3VkbyB0ZWUgL2V0Yy9ob3N0bmFtZQoKIyBVcGRhdGUgL2V0Yy9ob3N0cwpDVVJSRU5UX0hPU1ROQU1FPSQoaG9zdG5hbWUpCnN1ZG8gc2VkIC1pICJzLyRDVVJSRU5UX0hPU1ROQU1FLyRORVdfSE9TVE5BTUUvZyIgL2V0Yy9ob3N0cw=="
+}

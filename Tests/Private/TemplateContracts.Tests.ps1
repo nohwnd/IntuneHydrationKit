@@ -15,6 +15,8 @@ BeforeAll {
     $script:WinGetAppTemplates = Get-ChildItem -Path (Join-Path $script:WinGetRoot 'Apps') -Filter '*.json' -File
     $script:WinGetPresetTemplates = Get-ChildItem -Path (Join-Path $script:WinGetRoot 'Presets') -Filter '*.json' -File
     $script:WinGetSchemaTemplates = Get-ChildItem -Path (Join-Path $script:WinGetRoot 'Schemas') -Filter '*.json' -File
+    $script:LinuxComplianceTemplates = Get-ChildItem -Path (Join-Path $modulePath 'Templates/Compliance') -Filter 'Linux-Default-Compliance-*.json' -File
+    $script:LinuxScriptTemplates = Get-ChildItem -Path (Join-Path $modulePath 'Templates/LinuxScripts') -Filter 'Linux-Default-Configuration-*.json' -File
 }
 
 AfterAll {
@@ -84,6 +86,55 @@ Describe 'Bundled template contracts' {
 
                 $displayNames.Add([string]$filter.displayName) | Should -BeTrue -Because "Duplicate device filter name: $($filter.displayName)"
             }
+        }
+    }
+
+    It 'Should keep bundled Linux baseline compliance templates importable by the existing compliance workflow' {
+        $script:LinuxComplianceTemplates | Should -HaveCount 4
+        $displayNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+        foreach ($templateFile in $script:LinuxComplianceTemplates) {
+            $template = Get-Content -Path $templateFile.FullName -Raw | ConvertFrom-Json -Depth 100
+
+            [string]::IsNullOrWhiteSpace([string]$template.displayName) | Should -BeFalse -Because $templateFile.FullName
+            $template.displayName.StartsWith('[IHD] ') | Should -BeFalse -Because $templateFile.FullName
+            $template.name | Should -Be $template.displayName -Because $templateFile.FullName
+            $template.platforms | Should -Be 'linux' -Because $templateFile.FullName
+            $template.technologies | Should -Be 'linuxMdm' -Because $templateFile.FullName
+            @($template.roleScopeTagIds) | Should -Contain '0' -Because $templateFile.FullName
+            $template.PSObject.Properties['deviceCompliancePolicyScript'] | Should -Not -BeNullOrEmpty -Because $templateFile.FullName
+
+            $scriptDefinition = $template.deviceCompliancePolicyScriptDefinition
+            $scriptDefinition | Should -Not -BeNullOrEmpty -Because $templateFile.FullName
+            [string]::IsNullOrWhiteSpace([string]$scriptDefinition.detectionScriptContentBase64) | Should -BeFalse -Because $templateFile.FullName
+            [Convert]::FromBase64String([string]$scriptDefinition.detectionScriptContentBase64).Length | Should -BeGreaterThan 0 -Because $templateFile.FullName
+            $scriptDefinition.runAsAccount | Should -Be 'user' -Because $templateFile.FullName
+            @($scriptDefinition.rules.Rules).Count | Should -BeGreaterThan 0 -Because $templateFile.FullName
+
+            $displayNames.Add([string]$template.displayName) | Should -BeTrue -Because "Duplicate Linux compliance template: $($template.displayName)"
+        }
+    }
+
+    It 'Should keep bundled Linux script templates importable by the Linux script workflow' {
+        $script:LinuxScriptTemplates | Should -HaveCount 8
+        $displayNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+        foreach ($templateFile in $script:LinuxScriptTemplates) {
+            $template = Get-Content -Path $templateFile.FullName -Raw | ConvertFrom-Json -Depth 50
+
+            [string]::IsNullOrWhiteSpace([string]$template.displayName) | Should -BeFalse -Because $templateFile.FullName
+            $template.displayName.StartsWith('[IHD] ') | Should -BeFalse -Because $templateFile.FullName
+            $template.platform | Should -Be 'Linux' -Because $templateFile.FullName
+            $template.fileName | Should -Match '\.sh$' -Because $templateFile.FullName
+            $template.runAsAccount | Should -Be 'system' -Because $templateFile.FullName
+            $template.executionFrequency | Should -Be 'PT0S' -Because $templateFile.FullName
+            $template.retryCount | Should -Be 3 -Because $templateFile.FullName
+            $template.blockExecutionNotifications | Should -BeFalse -Because $templateFile.FullName
+            @($template.roleScopeTagIds) | Should -Contain '0' -Because $templateFile.FullName
+            [string]::IsNullOrWhiteSpace([string]$template.scriptContentBase64) | Should -BeFalse -Because $templateFile.FullName
+            [Convert]::FromBase64String([string]$template.scriptContentBase64).Length | Should -BeGreaterThan 0 -Because $templateFile.FullName
+
+            $displayNames.Add([string]$template.displayName) | Should -BeTrue -Because "Duplicate Linux script template: $($template.displayName)"
         }
     }
 

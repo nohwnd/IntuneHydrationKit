@@ -1,0 +1,14 @@
+{
+  "displayName": "Linux - Default - Configuration - Package Updates",
+  "description": "Linux configuration script from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/configuration/package_updates.sh",
+  "fileName": "package_updates.sh",
+  "platform": "Linux",
+  "runAsAccount": "system",
+  "executionFrequency": "PT0S",
+  "retryCount": 3,
+  "blockExecutionNotifications": false,
+  "roleScopeTagIds": [
+    "0"
+  ],
+  "scriptContentBase64": "IyEvYmluL2Jhc2gKCiMgVGhpcyBzY3JpcHQgdXBkYXRlcyB0aGUgc3lzdGVtIHBhY2thZ2UgbGlzdHMsIGluc3RhbGxzIGF2YWlsYWJsZSB1cGdyYWRlcwojIGZvciBBUFQgYW5kIFNuYXAgcGFja2FnZXMsIHJlbW92ZXMgbm8tbG9uZ2VyLW5lZWRlZCBwYWNrYWdlcywKIyBhbmQgY29uZmlybXMgdGhhdCB0aGUgdXBkYXRlIHByb2Nlc3MgaGFzIGNvbXBsZXRlZC4KCiMgVXBkYXRlIHRoZSBwYWNrYWdlIGxpc3QgZnJvbSBVYnVudHUgYW5kIGNvbmZpZ3VyZWQgdGhpcmQtcGFydHkgcmVwb3NpdG9yaWVzCmFwdC1nZXQgdXBkYXRlCgojIFVwZ3JhZGUgVWJ1bnR1IGFuZCBhbGwgaW5zdGFsbGVkIEFQVCBwYWNrYWdlcywgaW5jbHVkaW5nIHBhY2thZ2VzIHdpdGggZGVwZW5kZW5jeSBjaGFuZ2VzCmFwdC1nZXQgLXkgZGlzdC11cGdyYWRlCgojIFVwZGF0ZSBhbGwgaW5zdGFsbGVkIFNuYXAgcGFja2FnZXMKc25hcCByZWZyZXNoCgojIFJlbW92ZSBwYWNrYWdlcyB0aGF0IGFyZSBubyBsb25nZXIgcmVxdWlyZWQKYXB0LWdldCAteSBhdXRvcmVtb3ZlCgojIFNob3cgdGhlIGNoYW5nZQplY2hvICJVYnVudHUsIGluc3RhbGxlZCBBUFQgcGFja2FnZXMsIGFuZCBTbmFwIHBhY2thZ2VzIGhhdmUgYmVlbiB1cGRhdGVkIg=="
+}

@@ -1,0 +1,44 @@
+{
+  "displayName": "Linux - Default - Compliance - Firewall",
+  "name": "Linux - Default - Compliance - Firewall",
+  "description": "Linux custom compliance from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/compliance/firewall_enabled_discovery.sh",
+  "platforms": "linux",
+  "technologies": "linuxMdm",
+  "roleScopeTagIds": [
+    "0"
+  ],
+  "settings": [],
+  "deviceCompliancePolicyScript": {},
+  "deviceCompliancePolicyScriptDefinition": {
+    "displayName": "Linux - Default - Compliance Script - Firewall",
+    "description": "Discovery script from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/compliance/firewall_enabled_discovery.sh",
+    "detectionScriptContentBase64": "IyEvYmluL2Jhc2gKCiMgSW50dW5lIExpbnV4IGN1c3RvbSBjb21wbGlhbmNlIGRpc2NvdmVyeSBzY3JpcHRzIHJ1biBpbiB1c2VyIGNvbnRleHQsCiMgc28gYXZvaWQgc3VkbyBvciBjaGVja3MgdGhhdCByZXF1aXJlIGVsZXZhdGlvbi4KClVGV19FTkFCTEVEPWZhbHNlClVGV19CSU49Ii91c3Ivc2Jpbi91ZnciCgojIEZhbGwgYmFjayB0byBQQVRIIGlmIHVmdyBpc24ndCBpbiAvdXNyL3NiaW4KaWYgWyAhIC14ICIkVUZXX0JJTiIgXTsgdGhlbgogICAgVUZXX0JJTj0iJChjb21tYW5kIC12IHVmdyAyPi9kZXYvbnVsbCB8fCB0cnVlKSIKZmkKCiMgUHJlZmVyIHRoZSB1ZncgQ0xJIGJlY2F1c2UgaXQgcmVwb3J0cyB0aGUgZmlyZXdhbGwgc3RhdGUgZGlyZWN0bHkuCmlmIFsgLW4gIiRVRldfQklOIiBdICYmIFsgLXggIiRVRldfQklOIiBdOyB0aGVuCiAgICBVRldfU1RBVFVTPSIkKCRVRldfQklOIHN0YXR1cyAyPi9kZXYvbnVsbCB8IGhlYWQgLW4gMSkiCgogICAgaWYgWyAiJFVGV19TVEFUVVMiID0gIlN0YXR1czogYWN0aXZlIiBdOyB0aGVuCiAgICAgICAgVUZXX0VOQUJMRUQ9dHJ1ZQogICAgZmkKZmkKCiMgRmFsbGJhY2s6IGlmIHVmdyBzdGF0dXMgd2Fzbid0IGF2YWlsYWJsZSwgY2hlY2sgdGhlIHBlcnNpc3RlZCBjb25maWcuCmlmIFsgIiRVRldfRU5BQkxFRCIgPSBmYWxzZSBdICYmIFsgLXIgL2V0Yy91ZncvdWZ3LmNvbmYgXTsgdGhlbgogICAgaWYgZ3JlcCAtRXEgJ15FTkFCTEVEPXllcyQnIC9ldGMvdWZ3L3Vmdy5jb25mOyB0aGVuCiAgICAgICAgVUZXX0VOQUJMRUQ9dHJ1ZQogICAgZmkKZmkKCiMgSW50dW5lIGV4cGVjdHMgc2luZ2xlLWxpbmUgSlNPTiB3aG9zZSBwcm9wZXJ0eSBuYW1lcyBtYXRjaCBTZXR0aW5nTmFtZSB2YWx1ZXMuCnByaW50ZiAneyJVZndFbmFibGVkIjolc31cbicgIiRVRldfRU5BQkxFRCI=",
+    "enforceSignatureCheck": false,
+    "publisher": "Intune Hydration Kit",
+    "runAs32Bit": false,
+    "runAsAccount": "user",
+    "rules": {
+      "Rules": [
+        {
+          "SettingName": "UfwEnabled",
+          "Operator": "IsEquals",
+          "DataType": "Boolean",
+          "Operand": true,
+          "MoreInfoUrl": "https://help.ubuntu.com/community/UFW",
+          "RemediationStrings": [
+            {
+              "Language": "en_US",
+              "Title": "Ubuntu firewall must be enabled.",
+              "Description": "Enable UFW on this Ubuntu device. Your organization requires the firewall to be active."
+            },
+            {
+              "Language": "de_DE",
+              "Title": "Die Ubuntu-Firewall muss aktiviert sein.",
+              "Description": "Aktivieren Sie UFW auf diesem Ubuntu-Gerät. Ihre Organisation verlangt eine aktive Firewall."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -68,4 +68,23 @@ Describe 'Get-HydrationGraphScopes' {
             $macScopes | Should -Not -Contain 'DeviceManagementScripts.ReadWrite.All'
         }
     }
+
+    It 'Should include device script scope for Linux scripts' {
+        InModuleScope IntuneHydrationKit {
+            $scopes = Get-HydrationGraphScopes -Imports @{ linuxScripts = $true } -Create
+
+            $scopes | Should -Contain 'DeviceManagementScripts.ReadWrite.All'
+            $scopes | Should -Contain 'Organization.Read.All'
+            $scopes | Should -Contain 'LicenseAssignment.Read.All'
+            $scopes | Should -Not -Contain 'DeviceManagementApps.ReadWrite.All'
+        }
+    }
+
+    It 'Should skip device script scope for Linux scripts when Linux is not selected' {
+        InModuleScope IntuneHydrationKit {
+            $scopes = Get-HydrationGraphScopes -Imports @{ linuxScripts = $true } -Create -WorkloadPlatforms @{ LinuxScripts = @() }
+
+            $scopes | Should -Not -Contain 'DeviceManagementScripts.ReadWrite.All'
+        }
+    }
 }

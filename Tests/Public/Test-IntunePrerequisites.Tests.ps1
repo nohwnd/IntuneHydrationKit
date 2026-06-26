@@ -34,6 +34,8 @@ BeforeAll {
 
             [scriptblock]$DeviceHealthScriptsResponse,
 
+            [scriptblock]$DeviceShellScriptsResponse,
+
             [scriptblock]$IosAppProtectionResponse,
 
             [scriptblock]$AndroidAppProtectionResponse,
@@ -44,6 +46,7 @@ BeforeAll {
         $script:AssignmentFilterResponse = $AssignmentFilterResponse
         $script:MobileAppsResponse = $MobileAppsResponse
         $script:DeviceHealthScriptsResponse = $DeviceHealthScriptsResponse
+        $script:DeviceShellScriptsResponse = $DeviceShellScriptsResponse
         $script:IosAppProtectionResponse = $IosAppProtectionResponse
         $script:AndroidAppProtectionResponse = $AndroidAppProtectionResponse
         $script:ConditionalAccessResponse = $ConditionalAccessResponse
@@ -72,6 +75,9 @@ BeforeAll {
             }
             if ($Uri -like '*deviceManagement/deviceHealthScripts*' -and $script:DeviceHealthScriptsResponse) {
                 return & $script:DeviceHealthScriptsResponse
+            }
+            if ($Uri -like '*deviceManagement/deviceShellScripts*' -and $script:DeviceShellScriptsResponse) {
+                return & $script:DeviceShellScriptsResponse
             }
             if ($Uri -like '*deviceAppManagement/iosManagedAppProtections*' -and $script:IosAppProtectionResponse) {
                 return & $script:IosAppProtectionResponse
@@ -365,6 +371,35 @@ Describe 'Test-IntunePrerequisites' {
             Should -Invoke Invoke-MgGraphRequest -ModuleName IntuneHydrationKit -Times 0 -ParameterFilter {
                 $Uri -like '*deviceAppManagement/androidManagedAppProtections*'
             }
+        }
+
+        It 'Should probe Linux script access when LinuxScripts is selected for Linux platforms' {
+            Set-PrerequisiteGraphRequestMock -DeviceShellScriptsResponse { @{ value = @() } }
+
+            Test-IntunePrerequisites -Imports @{ linuxScripts = $true } -WorkloadPlatforms @{ LinuxScripts = @('Linux') } | Should -Be $true
+
+            Should -Invoke Invoke-MgGraphRequest -ModuleName IntuneHydrationKit -ParameterFilter {
+                $Method -eq 'GET' -and $Uri -like '*deviceManagement/deviceShellScripts*'
+            }
+        }
+
+        It 'Should skip Linux script access probe when LinuxScripts is selected for non-Linux platforms' {
+            Set-PrerequisiteGraphRequestMock
+
+            Test-IntunePrerequisites -Imports @{ linuxScripts = $true } -WorkloadPlatforms @{ LinuxScripts = @() } | Should -Be $true
+
+            Should -Invoke Invoke-MgGraphRequest -ModuleName IntuneHydrationKit -Times 0 -ParameterFilter {
+                $Uri -like '*deviceManagement/deviceShellScripts*'
+            }
+        }
+
+        It 'Should fail pre-flight with a concise Linux script access issue on Intune backend 403' {
+            Set-PrerequisiteGraphRequestMock -DeviceShellScriptsResponse {
+                throw 'HTTP/2.0 403 Forbidden {"error":{"code":"Forbidden","message":"User is not authorized"}}'
+            }
+
+            { Test-IntunePrerequisites -Imports @{ linuxScripts = $true } -WorkloadPlatforms @{ LinuxScripts = @('Linux') } } |
+                Should -Throw '*Linux Scripts access check failed*HTTP 403*DeviceManagementScripts.ReadWrite.All*Global Administrator*'
         }
 
         It 'Should probe Conditional Access access when ConditionalAccess is selected' {

@@ -3,6 +3,38 @@
 BeforeAll {
     $modulePath = Join-Path $PSScriptRoot '..\..\'
     Import-Module (Join-Path $modulePath 'IntuneHydrationKit.psd1') -Force
+
+    function New-TestCustomComplianceTemplateJson {
+        param(
+            [Parameter(Mandatory)]
+            [string]$PolicyName,
+
+            [Parameter()]
+            [string]$ScriptName = 'Shared Compliance Script'
+        )
+
+        @{
+            '@odata.type'                          = '#microsoft.graph.windows10CompliancePolicy'
+            displayName                            = $PolicyName
+            description                            = 'Custom policy'
+            deviceCompliancePolicyScript           = @{}
+            deviceCompliancePolicyScriptDefinition = @{
+                displayName                  = $ScriptName
+                description                  = 'Shared script'
+                detectionScriptContentBase64 = 'ZGV0ZWN0aW9u'
+                enforceSignatureCheck        = $false
+                runAs32Bit                   = $false
+                runAsAccount                 = 'system'
+                rules                        = @(
+                    @{
+                        property = 'ComplianceState'
+                        operator = 'equals'
+                        value    = 'Compliant'
+                    }
+                )
+            }
+        } | ConvertTo-Json -Depth 10
+    }
 }
 
 Describe 'Import-IntuneCompliancePolicy' {
@@ -224,49 +256,9 @@ Describe 'Import-IntuneCompliancePolicy' {
             Mock Get-Content {
                 param($Path)
                 if ($Path -like '*Custom-A.json') {
-                    @{
-                        '@odata.type'                          = '#microsoft.graph.windows10CompliancePolicy'
-                        displayName                            = 'Custom Policy A'
-                        description                            = 'Custom policy A'
-                        deviceCompliancePolicyScript           = @{}
-                        deviceCompliancePolicyScriptDefinition = @{
-                            displayName                  = 'Shared Compliance Script'
-                            description                  = 'Shared script'
-                            detectionScriptContentBase64 = 'ZGV0ZWN0aW9u'
-                            enforceSignatureCheck        = $false
-                            runAs32Bit                   = $false
-                            runAsAccount                 = 'system'
-                            rules                        = @(
-                                @{
-                                    property = 'ComplianceState'
-                                    operator = 'equals'
-                                    value    = 'Compliant'
-                                }
-                            )
-                        }
-                    } | ConvertTo-Json -Depth 10
+                    New-TestCustomComplianceTemplateJson -PolicyName 'Custom Policy A'
                 } else {
-                    @{
-                        '@odata.type'                          = '#microsoft.graph.windows10CompliancePolicy'
-                        displayName                            = 'Custom Policy B'
-                        description                            = 'Custom policy B'
-                        deviceCompliancePolicyScript           = @{}
-                        deviceCompliancePolicyScriptDefinition = @{
-                            displayName                  = 'Shared Compliance Script'
-                            description                  = 'Shared script'
-                            detectionScriptContentBase64 = 'ZGV0ZWN0aW9u'
-                            enforceSignatureCheck        = $false
-                            runAs32Bit                   = $false
-                            runAsAccount                 = 'system'
-                            rules                        = @(
-                                @{
-                                    property = 'ComplianceState'
-                                    operator = 'equals'
-                                    value    = 'Compliant'
-                                }
-                            )
-                        }
-                    } | ConvertTo-Json -Depth 10
+                    New-TestCustomComplianceTemplateJson -PolicyName 'Custom Policy B'
                 }
             } -ModuleName IntuneHydrationKit
 
@@ -303,6 +295,33 @@ Describe 'Import-IntuneCompliancePolicy' {
             Should -Invoke Invoke-MgGraphRequest -ModuleName IntuneHydrationKit -ParameterFilter {
                 $Method -eq 'POST' -and $Uri -eq 'beta/deviceManagement/deviceComplianceScripts'
             } -Times 0
+        }
+
+        It 'Should tag newly created compliance scripts with hydration ownership metadata' {
+            Mock Get-GraphPagedResults -ModuleName IntuneHydrationKit
+            Mock Invoke-MgGraphRequest {
+                param($Method, $Uri, $Body)
+
+                if ($Method -eq 'GET') {
+                    return @{ value = @() }
+                }
+                if ($Method -eq 'POST' -and $Uri -eq 'beta/deviceManagement/deviceComplianceScripts') {
+                    $scriptBody = $Body | ConvertFrom-Json
+                    $scriptBody.displayName | Should -Be '[IHD] Shared Compliance Script'
+                    $scriptBody.description | Should -Match 'Imported by Intune Hydration Kit'
+                    return @{ id = 'created-script-id' }
+                }
+                if ($Method -eq 'POST' -and $Uri -eq 'beta/deviceManagement/deviceCompliancePolicies') {
+                    return @{ id = 'created-policy-id' }
+                }
+            } -ModuleName IntuneHydrationKit
+
+            $result = Import-IntuneCompliancePolicy -Platform Windows
+
+            @($result | Where-Object { $_.Action -eq 'Created' }).Count | Should -Be 2
+            Should -Invoke Invoke-MgGraphRequest -ModuleName IntuneHydrationKit -ParameterFilter {
+                $Method -eq 'POST' -and $Uri -eq 'beta/deviceManagement/deviceComplianceScripts'
+            } -Times 1
         }
     }
 
@@ -418,6 +437,67 @@ Describe 'Import-IntuneCompliancePolicy' {
             $deletedItems = @($result | Where-Object { $_.Action -eq 'Deleted' })
             $deletedItems.Count | Should -Be 1
             $deletedItems[0].Name | Should -Be 'Test Policy'
+        }
+
+        It 'Should delete only tagged custom compliance scripts that match selected templates' {
+            Mock Get-FilteredTemplates {
+                @([PSCustomObject]@{ FullName = 'TestPath\Custom-Compliance.json'; Name = 'Custom-Compliance.json' })
+            } -ModuleName IntuneHydrationKit
+            Mock Get-Content {
+                New-TestCustomComplianceTemplateJson -PolicyName 'Custom Policy'
+            } -ModuleName IntuneHydrationKit
+            Mock Test-HydrationKitObject {
+                param($Description)
+
+                return $Description -like '*Imported by Intune Hydration Kit*'
+            } -ModuleName IntuneHydrationKit
+            Mock Invoke-MgGraphRequest {
+                param($Method)
+
+                if ($Method -eq 'GET') {
+                    return @{ value = @() }
+                }
+            } -ModuleName IntuneHydrationKit
+            Mock Get-GraphPagedResults {
+                param($Uri, $ProcessItems)
+
+                $Uri | Should -BeLike '*deviceComplianceScripts*'
+                & $ProcessItems @(
+                    @{
+                        id          = 'matching-script-id'
+                        displayName = '[IHD] Shared Compliance Script'
+                        description = 'Imported by Intune Hydration Kit'
+                    }
+                    @{
+                        id          = 'other-script-id'
+                        displayName = '[IHD] Other Compliance Script'
+                        description = 'Imported by Intune Hydration Kit'
+                    }
+                    @{
+                        id          = 'manual-script-id'
+                        displayName = '[IHD] Shared Compliance Script Manual'
+                        description = 'Created manually'
+                    }
+                )
+            } -ModuleName IntuneHydrationKit
+            Mock Invoke-GraphBatchOperation {
+                param($Items, $Operation, $BaseUrl, $ResultType)
+
+                $Operation | Should -Be 'DELETE'
+                $BaseUrl | Should -Be '/deviceManagement/deviceComplianceScripts'
+                $ResultType | Should -Be 'ComplianceScript'
+                @($Items) | Should -HaveCount 1
+                $Items[0].Name | Should -Be '[IHD] Shared Compliance Script'
+
+                New-HydrationResult -Name $Items[0].Name -Type 'ComplianceScript' -Action 'Deleted' -Status 'Success'
+            } -ModuleName IntuneHydrationKit
+
+            $result = Import-IntuneCompliancePolicy -RemoveExisting -Confirm:$false
+
+            $deletedItems = @($result | Where-Object { $_.Action -eq 'Deleted' })
+            $deletedItems | Should -HaveCount 1
+            $deletedItems[0].Type | Should -Be 'ComplianceScript'
+            Should -Invoke Invoke-GraphBatchOperation -ModuleName IntuneHydrationKit -Times 1
         }
     }
 

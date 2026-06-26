@@ -56,6 +56,8 @@
     Process mobile app templates
 .PARAMETER CISBaselines
     Process bundled CIS baseline policies
+.PARAMETER LinuxScripts
+    Process Linux shell script templates
 .PARAMETER All
     Enable all targets
 .PARAMETER Platform
@@ -169,6 +171,10 @@ param(
     [Parameter(ParameterSetName = 'Interactive')]
     [Parameter(ParameterSetName = 'ServicePrincipal')]
     [switch]$CISBaselines,
+
+    [Parameter(ParameterSetName = 'Interactive')]
+    [Parameter(ParameterSetName = 'ServicePrincipal')]
+    [switch]$LinuxScripts,
 
     [Parameter(ParameterSetName = 'Interactive')]
     [Parameter(ParameterSetName = 'ServicePrincipal')]

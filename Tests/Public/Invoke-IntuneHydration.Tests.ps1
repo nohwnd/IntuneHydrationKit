@@ -240,6 +240,14 @@ Describe 'Invoke-IntuneHydration' {
             $param | Should -Not -BeNullOrEmpty
             $param.ParameterType | Should -Be ([switch])
         }
+
+        It 'Should have LinuxScripts switch parameter' {
+            $command = Get-Command Invoke-IntuneHydration
+            $param = $command.Parameters['LinuxScripts']
+
+            $param | Should -Not -BeNullOrEmpty
+            $param.ParameterType | Should -Be ([switch])
+        }
     }
 
     Context 'Settings File Validation' {
@@ -319,6 +327,7 @@ Describe 'Invoke-IntuneHydration' {
             Mock Import-IntuneConditionalAccessPolicy -ModuleName IntuneHydrationKit
             Mock Import-IntuneMobileApp { @() } -ModuleName IntuneHydrationKit
             Mock Import-IntuneWinGetApp { @() } -ModuleName IntuneHydrationKit
+            Mock Import-IntuneLinuxScript { @() } -ModuleName IntuneHydrationKit
             Mock New-IntuneDynamicGroup -ModuleName IntuneHydrationKit
             Mock Get-ChildItem { @() } -ModuleName IntuneHydrationKit
 
@@ -565,7 +574,7 @@ Describe 'Invoke-IntuneHydration' {
             Invoke-IntuneHydration -SettingsPath $testSettingsPath | Out-Null
 
             Should -Invoke Test-IntunePrerequisites -ModuleName IntuneHydrationKit -ParameterFilter {
-                $BaselinePlatforms.Count -eq 1 -and $BaselinePlatforms -contains 'Windows'
+                $WorkloadPlatforms.Baseline.Count -eq 1 -and $WorkloadPlatforms.Baseline -contains 'Windows'
             } -Times 1
         }
     }
@@ -689,6 +698,7 @@ Describe 'Invoke-IntuneHydration' {
             Mock Import-IntuneConditionalAccessPolicy { @() } -ModuleName IntuneHydrationKit
             Mock Import-IntuneMobileApp { @() } -ModuleName IntuneHydrationKit
             Mock Import-IntuneWinGetApp { @() } -ModuleName IntuneHydrationKit
+            Mock Import-IntuneLinuxScript { @() } -ModuleName IntuneHydrationKit
             Mock Import-CISBaseline { @() } -ModuleName IntuneHydrationKit
             Mock New-IntuneDynamicGroup { @{ Action = 'Created'; Id = 'test-id' } } -ModuleName IntuneHydrationKit
             Mock Invoke-GroupBatchImport { @() } -ModuleName IntuneHydrationKit
@@ -736,6 +746,20 @@ Describe 'Invoke-IntuneHydration' {
             Should -Invoke Import-CISBaseline -ModuleName IntuneHydrationKit -Times 1
         }
 
+        It 'Should call Import-IntuneLinuxScript when LinuxScripts is enabled for Linux' {
+            Invoke-IntuneHydration -TenantId '12345678-1234-1234-1234-123456789abc' -Interactive -Create -LinuxScripts -Platform Linux -WhatIf
+
+            Should -Invoke Import-IntuneLinuxScript -ModuleName IntuneHydrationKit -Times 1 -ParameterFilter {
+                @($Platform).Count -eq 1 -and $Platform[0] -eq 'Linux'
+            }
+        }
+
+        It 'Should not call Import-IntuneLinuxScript when LinuxScripts is enabled for Windows only' {
+            Invoke-IntuneHydration -TenantId '12345678-1234-1234-1234-123456789abc' -Interactive -Create -LinuxScripts -Platform Windows -WhatIf
+
+            Should -Invoke Import-IntuneLinuxScript -ModuleName IntuneHydrationKit -Times 0
+        }
+
         It 'Should call WinGet and scoped legacy mobile app importers when MobileApps is enabled' {
             $expectedWindowsFallbackTemplateIds = & $script:TestModule { Get-WindowsLegacyMobileAppTemplateId }
 
@@ -780,6 +804,7 @@ Describe 'Invoke-IntuneHydration' {
             Should -Invoke Import-IntuneEnrollmentProfile -ModuleName IntuneHydrationKit -Times 1
             Should -Invoke Import-IntuneConditionalAccessPolicy -ModuleName IntuneHydrationKit -Times 1
             Should -Invoke Import-IntuneWinGetApp -ModuleName IntuneHydrationKit -Times 1
+            Should -Invoke Import-IntuneLinuxScript -ModuleName IntuneHydrationKit -Times 1
         }
 
         It 'Should call Import-IntuneBaseline without BaselinePath parameter' {

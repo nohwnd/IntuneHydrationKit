@@ -85,12 +85,6 @@ function Import-IntuneCompliancePolicy {
         }
     }
 
-    # Build a simple name->id lookup for backwards compatibility in the import section
-    $existingByName = @{}
-    foreach ($key in $existingPolicies.Keys) {
-        $existingByName[$key] = $existingPolicies[$key].Id
-    }
-
     $results = @()
 
     # Remove existing policies if requested
@@ -114,22 +108,55 @@ function Import-IntuneCompliancePolicy {
             }
         }
 
-        if ($policiesToDelete.Count -eq 0) {
-            Write-Verbose "No compliance policies found to delete"
+        $scriptsToDelete = @()
+        $knownScriptNames = Get-HydrationComplianceScriptTemplateNameSet -TemplateFile $templateFiles
+        if ($knownScriptNames.Count -gt 0) {
+            $existingComplianceScripts = Get-HydrationComplianceScriptMap
+
+            foreach ($scriptName in $existingComplianceScripts.Keys) {
+                $scriptInfo = $existingComplianceScripts[$scriptName]
+                if (-not (Test-HydrationKitObject -Description $scriptInfo.Description -ObjectName $scriptName)) {
+                    Write-Verbose "Skipping compliance script '$scriptName' - not created by Intune Hydration Kit"
+                    continue
+                }
+
+                if (-not $knownScriptNames.Contains($scriptName)) {
+                    Write-Verbose "Skipping compliance script '$scriptName' - not in this kit's compliance script templates"
+                    continue
+                }
+
+                $scriptsToDelete += @{
+                    Name = $scriptName
+                    Id   = $scriptInfo.Id
+                }
+            }
+        }
+
+        if (($policiesToDelete.Count + $scriptsToDelete.Count) -eq 0) {
+            Write-Verbose "No compliance policies or scripts found to delete"
             return $results
         }
 
         # Handle WhatIf mode
-        if (-not $PSCmdlet.ShouldProcess("$($policiesToDelete.Count) compliance policies", "Delete")) {
+        $deleteTarget = "$($policiesToDelete.Count) compliance policy/policies and $($scriptsToDelete.Count) compliance script(s)"
+        if (-not $PSCmdlet.ShouldProcess($deleteTarget, "Delete")) {
             foreach ($policy in $policiesToDelete) {
                 Write-HydrationLog -Message "  WouldDelete: $($policy.Name)" -Level Info
                 $results += New-HydrationResult -Name $policy.Name -Type 'CompliancePolicy' -Action 'WouldDelete' -Status 'DryRun'
             }
+            foreach ($scriptItem in $scriptsToDelete) {
+                Write-HydrationLog -Message "  WouldDelete: $($scriptItem.Name)" -Level Info
+                $results += New-HydrationResult -Name $scriptItem.Name -Type 'ComplianceScript' -Action 'WouldDelete' -Status 'DryRun'
+            }
             return $results
         }
 
-        # Batch delete policies using centralized helper
-        $results += Invoke-GraphBatchOperation -Items $policiesToDelete -Operation 'DELETE' -ResultType 'CompliancePolicy'
+        if ($policiesToDelete.Count -gt 0) {
+            $results += Invoke-GraphBatchOperation -Items $policiesToDelete -Operation 'DELETE' -ResultType 'CompliancePolicy'
+        }
+        if ($scriptsToDelete.Count -gt 0) {
+            $results += Invoke-GraphBatchOperation -Items $scriptsToDelete -Operation 'DELETE' -BaseUrl '/deviceManagement/deviceComplianceScripts' -ResultType 'ComplianceScript'
+        }
 
         return $results
     }
@@ -261,22 +288,7 @@ function Import-IntuneCompliancePolicy {
         $results += Invoke-GraphBatchOperation -Items $standardPoliciesToCreate -Operation 'POST' -ResultType 'CompliancePolicy'
     }
 
-    $existingComplianceScripts = @{}
-    if ($customPoliciesToCreate.Count -gt 0) {
-        try {
-            Get-GraphPagedResults -Uri "beta/deviceManagement/deviceComplianceScripts?`$select=id,displayName" -ProcessItems {
-                param($items)
-
-                foreach ($script in $items) {
-                    if ($script.displayName -and -not $existingComplianceScripts.ContainsKey($script.displayName)) {
-                        $existingComplianceScripts[$script.displayName] = $script.id
-                    }
-                }
-            }
-        } catch {
-            Write-Warning "Failed to prefetch compliance scripts: $_"
-        }
-    }
+    $existingComplianceScripts = if ($customPoliciesToCreate.Count -gt 0) { Get-HydrationComplianceScriptMap } else { @{} }
 
     # Process custom compliance policies with scripts sequentially (require script creation first)
     foreach ($policyInfo in $customPoliciesToCreate) {
@@ -288,18 +300,20 @@ function Import-IntuneCompliancePolicy {
 
         try {
             $scriptDefinition = $template.deviceCompliancePolicyScriptDefinition
-            $scriptDisplayName = if ($scriptDefinition.displayName) { $scriptDefinition.displayName } else { "$displayName Script" }
+            $scriptName = Get-HydrationComplianceScriptName -ScriptDefinition $scriptDefinition -PolicyDisplayName $displayName
 
             # Step 1: Check if compliance script already exists or create it
             $scriptId = $null
-            if ($existingComplianceScripts.ContainsKey($scriptDisplayName)) {
-                $scriptId = $existingComplianceScripts[$scriptDisplayName]
+            if ($existingComplianceScripts.ContainsKey($scriptName.DisplayName)) {
+                $scriptId = $existingComplianceScripts[$scriptName.DisplayName].Id
+            } elseif ($existingComplianceScripts.ContainsKey($scriptName.BaseName)) {
+                $scriptId = $existingComplianceScripts[$scriptName.BaseName].Id
             } elseif ($scriptDefinition -and $scriptDefinition.detectionScriptContentBase64) {
                 # Create the compliance script
                 $scriptBody = @{
-                    description            = if ($scriptDefinition.description) { $scriptDefinition.description } else { "" }
+                    description            = New-HydrationDescription -ExistingText $(if ($scriptDefinition.description) { $scriptDefinition.description } else { "" })
                     detectionScriptContent = $scriptDefinition.detectionScriptContentBase64
-                    displayName            = $scriptDisplayName
+                    displayName            = $scriptName.DisplayName
                     enforceSignatureCheck  = [bool]$scriptDefinition.enforceSignatureCheck
                     publisher              = if ($scriptDefinition.publisher) { $scriptDefinition.publisher } else { "Publisher" }
                     runAs32Bit             = [bool]$scriptDefinition.runAs32Bit
@@ -308,7 +322,11 @@ function Import-IntuneCompliancePolicy {
 
                 $newScript = Invoke-MgGraphRequest -Method POST -Uri "beta/deviceManagement/deviceComplianceScripts" -Body ($scriptBody | ConvertTo-Json -Depth 10) -ContentType "application/json" -ErrorAction Stop
                 $scriptId = $newScript.id
-                $existingComplianceScripts[$scriptDisplayName] = $scriptId
+                $existingComplianceScripts[$scriptName.DisplayName] = @{
+                    Id          = $scriptId
+                    Description = $scriptBody.description
+                    IsTagged    = $true
+                }
             } else {
                 Write-Warning "Skipping compliance policy '$displayName' - no script definition found with detectionScriptContentBase64"
                 $results += New-HydrationResult -Name $displayName -Path $templateFile.FullName -Type 'CompliancePolicy' -Action 'Failed' -Status 'Missing detectionScriptContentBase64 in deviceCompliancePolicyScriptDefinition'

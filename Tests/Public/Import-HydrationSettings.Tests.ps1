@@ -155,6 +155,7 @@ Describe 'Import-HydrationSettings' {
             $result.options.dryRun | Should -Be $false
             $result.imports.mobileApps | Should -Be $true
             $result.imports.cisBaselines | Should -Be $false
+            $result.imports.linuxScripts | Should -Be $true
             $result.mobileApps.presetId | Should -Be $null
             $result.mobileApps.templateIds | Should -Be @()
             $result.mobileApps.remediation.enabled | Should -Be $true

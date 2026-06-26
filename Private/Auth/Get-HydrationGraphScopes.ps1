@@ -14,7 +14,10 @@ function Get-HydrationGraphScopes {
         [hashtable]$MobileAppConfiguration = @{},
 
         [Parameter()]
-        [string[]]$MobileAppPlatforms = @('All')
+        [string[]]$MobileAppPlatforms = @('All'),
+
+        [Parameter()]
+        [object]$WorkloadPlatforms
     )
 
     $allScopes = @(
@@ -53,6 +56,7 @@ function Get-HydrationGraphScopes {
         notificationTemplates = @('DeviceManagementServiceConfig.ReadWrite.All')
         mobileApps            = @('DeviceManagementApps.ReadWrite.All')
         cisBaselines          = @('DeviceManagementConfiguration.ReadWrite.All')
+        linuxScripts          = @()
     }
 
     foreach ($importKey in $Imports.Keys) {
@@ -76,8 +80,15 @@ function Get-HydrationGraphScopes {
     if ($MobileAppConfiguration -and $MobileAppConfiguration.ContainsKey('remediationEnabled') -and $null -ne $MobileAppConfiguration.remediationEnabled) {
         $remediationEnabled = [bool]$MobileAppConfiguration.remediationEnabled
     }
+    $effectiveMobileAppPlatforms = Get-HydrationWorkloadPlatform -WorkloadPlatforms $WorkloadPlatforms -Workload 'MobileApps' -Default $MobileAppPlatforms
     if ($Imports.ContainsKey('mobileApps') -and $Imports.mobileApps -and $remediationEnabled -and
-        (Test-HydrationMobileAppsIncludeWinGet -Configuration $MobileAppConfiguration -Platforms $MobileAppPlatforms)) {
+        (Test-HydrationMobileAppsIncludeWinGet -Configuration $MobileAppConfiguration -Platforms $effectiveMobileAppPlatforms)) {
+        [void]$scopes.Add('DeviceManagementScripts.ReadWrite.All')
+    }
+
+    $linuxScriptPlatforms = Get-HydrationWorkloadPlatform -WorkloadPlatforms $WorkloadPlatforms -Workload 'LinuxScripts' -Default @('All')
+    if ($Imports.ContainsKey('linuxScripts') -and $Imports.linuxScripts -and
+        ($linuxScriptPlatforms -contains 'All' -or $linuxScriptPlatforms -contains 'Linux')) {
         [void]$scopes.Add('DeviceManagementScripts.ReadWrite.All')
     }
 

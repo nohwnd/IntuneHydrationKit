@@ -19,10 +19,17 @@ function Get-HydrationGraphWorkloadAccessProbe {
         [string[]]$AppProtectionPlatforms = @('All'),
 
         [Parameter()]
-        [string[]]$BaselinePlatforms = @('All')
+        [string[]]$BaselinePlatforms = @('All'),
+
+        [Parameter()]
+        [object]$WorkloadPlatforms
     )
 
     $probes = [System.Collections.Generic.List[hashtable]]::new()
+    $effectiveMobileAppPlatforms = Get-HydrationWorkloadPlatform -WorkloadPlatforms $WorkloadPlatforms -Workload 'MobileApps' -Default $MobileAppPlatforms
+    $effectiveAppProtectionPlatforms = Get-HydrationWorkloadPlatform -WorkloadPlatforms $WorkloadPlatforms -Workload 'AppProtection' -Default $AppProtectionPlatforms
+    $effectiveBaselinePlatforms = Get-HydrationWorkloadPlatform -WorkloadPlatforms $WorkloadPlatforms -Workload 'Baseline' -Default $BaselinePlatforms
+    $linuxScriptPlatforms = Get-HydrationWorkloadPlatform -WorkloadPlatforms $WorkloadPlatforms -Workload 'LinuxScripts' -Default @('All')
 
     if ($Imports.ContainsKey('deviceFilters') -and $Imports.deviceFilters) {
         $probes.Add(@{
@@ -48,7 +55,7 @@ function Get-HydrationGraphWorkloadAccessProbe {
             $remediationEnabled = [bool]$MobileAppConfiguration.remediationEnabled
         }
 
-        if ($remediationEnabled -and (Test-HydrationMobileAppsIncludeWinGet -Configuration $MobileAppConfiguration -Platforms $MobileAppPlatforms)) {
+        if ($remediationEnabled -and (Test-HydrationMobileAppsIncludeWinGet -Configuration $MobileAppConfiguration -Platforms $effectiveMobileAppPlatforms)) {
             $probes.Add(@{
                     Workload      = 'WinGet Proactive Remediations'
                     Endpoint      = 'beta/deviceManagement/deviceHealthScripts'
@@ -59,16 +66,27 @@ function Get-HydrationGraphWorkloadAccessProbe {
         }
     }
 
+    if ($Imports.ContainsKey('linuxScripts') -and $Imports.linuxScripts -and
+        ($linuxScriptPlatforms -contains 'All' -or $linuxScriptPlatforms -contains 'Linux')) {
+        $probes.Add(@{
+                Workload      = 'Linux Scripts'
+                Endpoint      = 'beta/deviceManagement/deviceShellScripts'
+                Uri           = 'beta/deviceManagement/deviceShellScripts?$top=1&$select=id'
+                RequiredScope = 'DeviceManagementScripts.ReadWrite.All'
+                RoleHint      = 'Use a Global Administrator account with active Intune device script access; PIM-elevated roles can still be rejected by the downstream Intune service.'
+            })
+    }
+
     $appProtectionProbePlatforms = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 
     if ($Imports.ContainsKey('appProtection') -and $Imports.appProtection) {
-        foreach ($endpointInfo in (Get-AppProtectionEndpointInfo -Platform $AppProtectionPlatforms)) {
+        foreach ($endpointInfo in (Get-AppProtectionEndpointInfo -Platform $effectiveAppProtectionPlatforms)) {
             [void]$appProtectionProbePlatforms.Add($endpointInfo.Platform)
         }
     }
 
     if ($Imports.ContainsKey('openIntuneBaseline') -and $Imports.openIntuneBaseline) {
-        foreach ($endpointInfo in (Get-AppProtectionEndpointInfo -Platform $BaselinePlatforms)) {
+        foreach ($endpointInfo in (Get-AppProtectionEndpointInfo -Platform $effectiveBaselinePlatforms)) {
             [void]$appProtectionProbePlatforms.Add($endpointInfo.Platform)
         }
     }

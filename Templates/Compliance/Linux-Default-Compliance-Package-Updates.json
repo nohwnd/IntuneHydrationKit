@@ -1,0 +1,44 @@
+{
+  "displayName": "Linux - Default - Compliance - Package Updates",
+  "name": "Linux - Default - Compliance - Package Updates",
+  "description": "Linux custom compliance from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/compliance/update_check_discovery.sh",
+  "platforms": "linux",
+  "technologies": "linuxMdm",
+  "roleScopeTagIds": [
+    "0"
+  ],
+  "settings": [],
+  "deviceCompliancePolicyScript": {},
+  "deviceCompliancePolicyScriptDefinition": {
+    "displayName": "Linux - Default - Compliance Script - Package Updates",
+    "description": "Discovery script from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/compliance/update_check_discovery.sh",
+    "detectionScriptContentBase64": "IyEvYmluL3NoCiMgSW50dW5lIGN1c3RvbSBjb21wbGlhbmNlIGRpc2NvdmVyeSBzY3JpcHQgZm9yIFVidW50dSAyNC4wNCBMVFMKIyBDaGVja3Mgd2hldGhlciBBUFQgcGFja2FnZSB1cGdyYWRlcyB3ZXJlIGluc3RhbGxlZCBpbiB0aGUgbGFzdCAyOCBkYXlzLgojIE91dHB1dCBtdXN0IGJlIHZhbGlkIEpTT04gYW5kIG1hdGNoIHRoZSBzZXR0aW5nIG5hbWUgdXNlZCBpbiB0aGUgcnVsZXMgZmlsZS4KCnNldCAtdQoKU0VUVElOR19OQU1FPSJVcGRhdGVzSW5zdGFsbGVkSW5MYXN0NFdlZWtzIgpEQVlTPTI4CkxBU1RfVVBHUkFERV9FUE9DSD0wClRIUkVTSE9MRF9FUE9DSD0kKGRhdGUgLWQgIiREQVlTIGRheXMgYWdvIiArJXMgMj4vZGV2L251bGwgfHwgZWNobyAwKQoKZW1pdF9oaXN0b3J5X2xvZ3MoKSB7CiAgICBmb3VuZF9hbnk9MAogICAgZm9yIGZpbGUgaW4gL3Zhci9sb2cvYXB0L2hpc3RvcnkubG9nKjsgZG8KICAgICAgICBbIC1lICIkZmlsZSIgXSB8fCBjb250aW51ZQogICAgICAgIGZvdW5kX2FueT0xCiAgICAgICAgY2FzZSAiJGZpbGUiIGluCiAgICAgICAgICAgICouZ3opCiAgICAgICAgICAgICAgICBnemlwIC1jZCAtLSAiJGZpbGUiIDI+L2Rldi9udWxsIHx8IHRydWUKICAgICAgICAgICAgICAgIDs7CiAgICAgICAgICAgICopCiAgICAgICAgICAgICAgICBjYXQgLS0gIiRmaWxlIiAyPi9kZXYvbnVsbCB8fCB0cnVlCiAgICAgICAgICAgICAgICA7OwogICAgICAgIGVzYWMKICAgICAgICBwcmludGYgJ1xuJwogICAgZG9uZQoKICAgICMgUmV0dXJuIHN1Y2Nlc3MgZXZlbiBpZiBubyBoaXN0b3J5IGxvZ3MgZXhpc3Q7IHRoZSBzY3JpcHQgd2lsbCB0aGVuIG1hcmsKICAgICMgdGhlIGRldmljZSBhcyBub25jb21wbGlhbnQgYmVjYXVzZSBubyBxdWFsaWZ5aW5nIHVwZGF0ZSB0cmFuc2FjdGlvbiBleGlzdHMuCiAgICBbICIkZm91bmRfYW55IiAtZXEgMSBdIHx8IHRydWUKfQoKcGFyc2VfdXBncmFkZV9kYXRlcygpIHsKICAgIGVtaXRfaGlzdG9yeV9sb2dzIHwgYXdrICcKICAgICAgICBCRUdJTiB7CiAgICAgICAgICAgIHN0YXJ0ID0gIiIKICAgICAgICAgICAgaGFzX3VwZ3JhZGUgPSAwCiAgICAgICAgfQogICAgICAgIC9eU3RhcnQtRGF0ZTovIHsKICAgICAgICAgICAgaWYgKHN0YXJ0ICE9ICIiICYmIGhhc191cGdyYWRlID09IDEpIHsKICAgICAgICAgICAgICAgIHByaW50IHN0YXJ0CiAgICAgICAgICAgIH0KICAgICAgICAgICAgbGluZSA9ICQwCiAgICAgICAgICAgIHN1YigvXlN0YXJ0LURhdGU6W1s6c3BhY2U6XV0qLywgIiIsIGxpbmUpCiAgICAgICAgICAgIGdzdWIoL1tbOnNwYWNlOl1dKy8sICIgIiwgbGluZSkKICAgICAgICAgICAgc3RhcnQgPSBsaW5lCiAgICAgICAgICAgIGhhc191cGdyYWRlID0gMAogICAgICAgICAgICBuZXh0CiAgICAgICAgfQogICAgICAgIC9eVXBncmFkZTpbWzpzcGFjZTpdXS8gewogICAgICAgICAgICBsaW5lID0gJDAKICAgICAgICAgICAgc3ViKC9eVXBncmFkZTpbWzpzcGFjZTpdXSovLCAiIiwgbGluZSkKICAgICAgICAgICAgaWYgKGxpbmUgIT0gIiIpIHsKICAgICAgICAgICAgICAgIGhhc191cGdyYWRlID0gMQogICAgICAgICAgICB9CiAgICAgICAgICAgIG5leHQKICAgICAgICB9CiAgICAgICAgRU5EIHsKICAgICAgICAgICAgaWYgKHN0YXJ0ICE9ICIiICYmIGhhc191cGdyYWRlID09IDEpIHsKICAgICAgICAgICAgICAgIHByaW50IHN0YXJ0CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICAnCn0KCndoaWxlIElGUz0gcmVhZCAtciB1cGdyYWRlX2RhdGU7IGRvCiAgICBbIC1uICIkdXBncmFkZV9kYXRlIiBdIHx8IGNvbnRpbnVlCiAgICB1cGdyYWRlX2Vwb2NoPSQoZGF0ZSAtZCAiJHVwZ3JhZGVfZGF0ZSIgKyVzIDI+L2Rldi9udWxsIHx8IGVjaG8gMCkKICAgIGlmIFsgIiR1cGdyYWRlX2Vwb2NoIiAtZ3QgIiRMQVNUX1VQR1JBREVfRVBPQ0giIF07IHRoZW4KICAgICAgICBMQVNUX1VQR1JBREVfRVBPQ0g9JHVwZ3JhZGVfZXBvY2gKICAgIGZpCmRvbmUgPDxFT0ZfREFURVMKJChwYXJzZV91cGdyYWRlX2RhdGVzKQpFT0ZfREFURVMKCmlmIFsgIiRMQVNUX1VQR1JBREVfRVBPQ0giIC1nZSAiJFRIUkVTSE9MRF9FUE9DSCIgXSAyPi9kZXYvbnVsbDsgdGhlbgogICAgcHJpbnRmICd7IiVzIjp0cnVlfVxuJyAiJFNFVFRJTkdfTkFNRSIKZWxzZQogICAgcHJpbnRmICd7IiVzIjpmYWxzZX1cbicgIiRTRVRUSU5HX05BTUUiCmZp",
+    "enforceSignatureCheck": false,
+    "publisher": "Intune Hydration Kit",
+    "runAs32Bit": false,
+    "runAsAccount": "user",
+    "rules": {
+      "Rules": [
+        {
+          "SettingName": "UpdatesInstalledInLast4Weeks",
+          "Operator": "IsEquals",
+          "DataType": "Boolean",
+          "Operand": true,
+          "MoreInfoUrl": "https://ubuntu.com/tutorials/upgrading-ubuntu-desktop#1-before-you-start",
+          "RemediationStrings": [
+            {
+              "Language": "en_US",
+              "Title": "No Ubuntu package updates were installed in the last 4 weeks.",
+              "Description": "Install Ubuntu updates (for example with Software Updater, apt upgrade, apt full-upgrade, or unattended-upgrades) and then refresh compliance in the Microsoft Intune app."
+            },
+            {
+              "Language": "de_DE",
+              "Title": "In den letzten 4 Wochen wurden keine Ubuntu-Paketupdates installiert.",
+              "Description": "Installieren Sie Ubuntu-Updates (zum Beispiel über Software Updater, apt upgrade, apt full-upgrade oder unattended-upgrades) und aktualisieren Sie danach den Compliance-Status in der Microsoft Intune-App."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

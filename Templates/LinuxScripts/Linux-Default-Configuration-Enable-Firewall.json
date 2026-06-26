@@ -1,0 +1,14 @@
+{
+  "displayName": "Linux - Default - Configuration - Enable Firewall",
+  "description": "Linux configuration script from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/configuration/enable_firewall.sh",
+  "fileName": "enable_firewall.sh",
+  "platform": "Linux",
+  "runAsAccount": "system",
+  "executionFrequency": "PT0S",
+  "retryCount": 3,
+  "blockExecutionNotifications": false,
+  "roleScopeTagIds": [
+    "0"
+  ],
+  "scriptContentBase64": "IyEvYmluL2Jhc2gKCiMgVGhpcyBzY3JpcHQgY2hlY2tzIHdoZXRoZXIgdGhlIGZpcmV3YWxsIGlzIGVuYWJsZWQgYW5kLCBpZiBub3QsCiMgY29uZmlndXJlcyBzZWN1cmUgZGVmYXVsdCBVRlcgcnVsZXMgYW5kIGVuYWJsZXMgdGhlIGZpcmV3YWxsLgoKIyBHZXQgdGhlIGRldmljZSdzIGN1cnJlbnQgZmlyZXdhbGwgc3RhdHVzCkNVUlJFTlRfRklSRVdBTExfU1RBVFVTPSQodWZ3IHN0YXR1cyB8IGhlYWQgLW4gMSkKCiMgRGVmaW5lIHRoZSBuZXcgZmlyZXdhbGwgc2V0dGluZwpORVdfRklSRVdBTExfU0VUVElORz0iRW5hYmxlZCIKCiMgQ2hlY2sgaWYgdGhlIGZpcmV3YWxsIGlzIG5vdCBhbHJlYWR5IGVuYWJsZWQKaWYgWyAiJENVUlJFTlRfRklSRVdBTExfU1RBVFVTIiAhPSAiU3RhdHVzOiBhY3RpdmUiIF07IHRoZW4KICAgICMgU2V0IHRoZSBkZWZhdWx0IGZpcmV3YWxsIHBvbGljeQogICAgdWZ3IGRlZmF1bHQgZGVueSBpbmNvbWluZwogICAgdWZ3IGRlZmF1bHQgYWxsb3cgb3V0Z29pbmcKCiAgICAjIEVuYWJsZSB0aGUgZmlyZXdhbGwKICAgIHVmdyAtLWZvcmNlIGVuYWJsZQoKICAgICMgU2hvdyB0aGUgY2hhbmdlCiAgICBlY2hvICJGaXJld2FsbCBjaGFuZ2VkIGZyb20gRGlzYWJsZWQgdG8gJE5FV19GSVJFV0FMTF9TRVRUSU5HIgpmaQ=="
+}

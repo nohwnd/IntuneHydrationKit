@@ -1,0 +1,82 @@
+{
+  "displayName": "Linux - Default - Compliance - Defender Health",
+  "name": "Linux - Default - Compliance - Defender Health",
+  "description": "Linux custom compliance from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/compliance/defender_health_discovery.sh",
+  "platforms": "linux",
+  "technologies": "linuxMdm",
+  "roleScopeTagIds": [
+    "0"
+  ],
+  "settings": [],
+  "deviceCompliancePolicyScript": {},
+  "deviceCompliancePolicyScriptDefinition": {
+    "displayName": "Linux - Default - Compliance Script - Defender Health",
+    "description": "Discovery script from IntuneLinuxBaseline. Source: https://github.com/jorgeasaurus/IntuneLinuxBaseline/blob/main/compliance/defender_health_discovery.sh",
+    "detectionScriptContentBase64": "IyEvYmluL2Jhc2gKc2V0IC11CgojIEludHVuZSBMaW51eCBjdXN0b20gY29tcGxpYW5jZSBkaXNjb3Zlcnkgc2NyaXB0CiMgQ2hlY2tzIHdoZXRoZXIgTWljcm9zb2Z0IERlZmVuZGVyIGZvciBFbmRwb2ludCAobWRhdHApIGlzIGluc3RhbGxlZCwKIyB3aGV0aGVyIHRoZSBzZXJ2aWNlIGlzIGFjdGl2ZSwgYW5kIHdoZXRoZXIgRGVmZW5kZXIgcmVwb3J0cyBoZWFsdGh5PXRydWUuCiMgUnVucyBpbiB1c2VyIGNvbnRleHQ7IG5vIGVsZXZhdGlvbiBpcyByZXF1aXJlZC4KCmluc3RhbGxlZD1mYWxzZQpydW5uaW5nPWZhbHNlCmhlYWx0aHk9ZmFsc2UKCiMgRGV0ZWN0IGluc3RhbGxhdGlvbi4KIyBQcmltYXJ5IGNoZWNrIGZvciBVYnVudHUvRGViaWFuIHBhY2thZ2UtYmFzZWQgaW5zdGFsbGF0aW9uLgppZiBjb21tYW5kIC12IGRwa2ctcXVlcnkgPi9kZXYvbnVsbCAyPiYxOyB0aGVuCiAgICBpZiBkcGtnLXF1ZXJ5IC1XIC1mPScke1N0YXR1c30nIG1kYXRwIDI+L2Rldi9udWxsIHwgZ3JlcCAtcSAnXmluc3RhbGwgb2sgaW5zdGFsbGVkJCc7IHRoZW4KICAgICAgICBpbnN0YWxsZWQ9dHJ1ZQogICAgZmkKZmkKCiMgRmFsbGJhY2tzIGluIGNhc2UgZHBrZyBtZXRhZGF0YSBpcyB1bmF2YWlsYWJsZSBidXQgYmluYXJpZXMvcGF0aHMgZXhpc3QuCmlmIFsgIiRpbnN0YWxsZWQiID0gZmFsc2UgXTsgdGhlbgogICAgaWYgY29tbWFuZCAtdiBtZGF0cCA+L2Rldi9udWxsIDI+JjEgfHwgWyAteCAiL29wdC9taWNyb3NvZnQvbWRhdHAvc2Jpbi93ZGF2ZGFlbW9uIiBdIHx8IFsgLWQgIi9vcHQvbWljcm9zb2Z0L21kYXRwIiBdOyB0aGVuCiAgICAgICAgaW5zdGFsbGVkPXRydWUKICAgIGZpCmZpCgojIERldGVjdCBydW5uaW5nIHN0YXRlIG9ubHkgaWYgRGVmZW5kZXIgYXBwZWFycyB0byBiZSBpbnN0YWxsZWQuCmlmIFsgIiRpbnN0YWxsZWQiID0gdHJ1ZSBdOyB0aGVuCiAgICBpZiBjb21tYW5kIC12IHN5c3RlbWN0bCA+L2Rldi9udWxsIDI+JjE7IHRoZW4KICAgICAgICBpZiBzeXN0ZW1jdGwgaXMtYWN0aXZlIC0tcXVpZXQgbWRhdHAuc2VydmljZSAyPi9kZXYvbnVsbCB8fCBzeXN0ZW1jdGwgaXMtYWN0aXZlIC0tcXVpZXQgbWRhdHAgMj4vZGV2L251bGw7IHRoZW4KICAgICAgICAgICAgcnVubmluZz10cnVlCiAgICAgICAgZmkKICAgIGZpCgogICAgIyBGYWxsYmFjayBpZiBzeXN0ZW1jdGwgaXMgdW5hdmFpbGFibGUgb3IgcmV0dXJucyBubyBhY3RpdmUgc3RhdGUuCiAgICBpZiBbICIkcnVubmluZyIgPSBmYWxzZSBdICYmIGNvbW1hbmQgLXYgcGdyZXAgPi9kZXYvbnVsbCAyPiYxOyB0aGVuCiAgICAgICAgaWYgcGdyZXAgLXggd2RhdmRhZW1vbiA+L2Rldi9udWxsIDI+JjE7IHRoZW4KICAgICAgICAgICAgcnVubmluZz10cnVlCiAgICAgICAgZmkKICAgIGZpCgogICAgIyBEZXRlY3QgaGVhbHRoIHZpYSBkb2N1bWVudGVkIG1kYXRwIGhlYWx0aCBmaWVsZC4KICAgICMgTm9ybWFsaXplIGFueSBjYXNpbmcvd2hpdGVzcGFjZSBhbmQgdHJlYXQgYW55dGhpbmcgb3RoZXIgdGhhbiB0cnVlIGFzIGZhbHNlLgogICAgaWYgY29tbWFuZCAtdiBtZGF0cCA+L2Rldi9udWxsIDI+JjE7IHRoZW4KICAgICAgICBoZWFsdGhfdmFsdWU9IiQobWRhdHAgaGVhbHRoIC0tZmllbGQgaGVhbHRoeSAyPi9kZXYvbnVsbCB8IHRyIC1kICdbOnNwYWNlOl0nIHwgdHIgJ1s6dXBwZXI6XScgJ1s6bG93ZXI6XScpIgogICAgICAgIGlmIFsgIiRoZWFsdGhfdmFsdWUiID0gInRydWUiIF07IHRoZW4KICAgICAgICAgICAgaGVhbHRoeT10cnVlCiAgICAgICAgZmkKICAgIGZpCmZpCgpwcmludGYgJ3siRGVmZW5kZXJJbnN0YWxsZWQiOiVzLCJEZWZlbmRlclJ1bm5pbmciOiVzLCJEZWZlbmRlckhlYWx0aHkiOiVzfVxuJyAiJGluc3RhbGxlZCIgIiRydW5uaW5nIiAiJGhlYWx0aHki",
+    "enforceSignatureCheck": false,
+    "publisher": "Intune Hydration Kit",
+    "runAs32Bit": false,
+    "runAsAccount": "user",
+    "rules": {
+      "Rules": [
+        {
+          "SettingName": "DefenderInstalled",
+          "Operator": "IsEquals",
+          "DataType": "Boolean",
+          "Operand": true,
+          "MoreInfoUrl": "https://learn.microsoft.com/en-us/defender-endpoint/microsoft-defender-endpoint-linux",
+          "RemediationStrings": [
+            {
+              "Language": "en_US",
+              "Title": "Microsoft Defender for Endpoint must be installed.",
+              "Description": "Install the mdatp package on Ubuntu 24.04 LTS and onboard the device to Microsoft Defender for Endpoint."
+            },
+            {
+              "Language": "de_DE",
+              "Title": "Microsoft Defender for Endpoint muss installiert sein.",
+              "Description": "Installieren Sie das Paket mdatp auf Ubuntu 24.04 LTS und onboarden Sie das Gerät in Microsoft Defender for Endpoint."
+            }
+          ]
+        },
+        {
+          "SettingName": "DefenderRunning",
+          "Operator": "IsEquals",
+          "DataType": "Boolean",
+          "Operand": true,
+          "MoreInfoUrl": "https://learn.microsoft.com/en-us/defender-endpoint/linux-install-manually",
+          "RemediationStrings": [
+            {
+              "Language": "en_US",
+              "Title": "Microsoft Defender for Endpoint service must be running.",
+              "Description": "Start the mdatp service and verify that Defender is operating correctly on the device."
+            },
+            {
+              "Language": "de_DE",
+              "Title": "Der Dienst Microsoft Defender for Endpoint muss ausgeführt werden.",
+              "Description": "Starten Sie den Dienst mdatp und überprüfen Sie, dass Defender auf dem Gerät korrekt ausgeführt wird."
+            }
+          ]
+        },
+        {
+          "SettingName": "DefenderHealthy",
+          "Operator": "IsEquals",
+          "DataType": "Boolean",
+          "Operand": true,
+          "MoreInfoUrl": "https://learn.microsoft.com/en-us/defender-endpoint/linux-install-manually",
+          "RemediationStrings": [
+            {
+              "Language": "en_US",
+              "Title": "Microsoft Defender for Endpoint must report healthy status.",
+              "Description": "Verify onboarding, let initial definition updates finish, and confirm that 'mdatp health --field healthy' returns true."
+            },
+            {
+              "Language": "de_DE",
+              "Title": "Microsoft Defender for Endpoint muss einen fehlerfreien Status melden.",
+              "Description": "Überprüfen Sie das Onboarding, warten Sie den ersten Definitions-Download ab und stellen Sie sicher, dass 'mdatp health --field healthy' den Wert true zurückgibt."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
