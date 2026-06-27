@@ -9,6 +9,9 @@ function Get-HydrationDeleteCandidates {
         GET for likely matches so the hydration marker can still be verified safely.
     .PARAMETER Endpoint
         One or more beta Graph endpoints to enumerate.
+    .PARAMETER DeleteBaseUrl
+        Optional unversioned Graph path to use for delete URLs when Endpoint contains
+        query parameters or differs from the delete collection path.
     .PARAMETER KnownTemplateNames
         Optional case-insensitive HashSet of current template names used to scope deletes.
     .PARAMETER RequireTemplateMatch
@@ -21,6 +24,9 @@ function Get-HydrationDeleteCandidates {
     param(
         [Parameter(Mandatory)]
         [string[]]$Endpoint,
+
+        [Parameter()]
+        [string]$DeleteBaseUrl,
 
         [Parameter()]
         [System.Collections.Generic.HashSet[string]]$KnownTemplateNames,
@@ -36,6 +42,13 @@ function Get-HydrationDeleteCandidates {
     foreach ($currentEndpoint in $Endpoint) {
         try {
             $allPolicies = Get-GraphPagedResults -Uri $currentEndpoint
+            $currentDeleteBaseUrl = if ([string]::IsNullOrWhiteSpace($DeleteBaseUrl)) {
+                "/$($currentEndpoint -replace '^beta/', '' -replace '\?.*$', '')"
+            } else {
+                if ($DeleteBaseUrl.StartsWith('/')) { $DeleteBaseUrl } else { "/$DeleteBaseUrl" }
+            }
+
+            $verifyEndpoint = $currentEndpoint -replace '\?.*$', ''
             foreach ($policy in $allPolicies) {
                 $policyName = if ($policy.displayName) {
                     $policy.displayName
@@ -59,10 +72,10 @@ function Get-HydrationDeleteCandidates {
 
                 if ($shouldVerifyWithGet) {
                     try {
-                        $fullPolicy = Invoke-MgGraphRequest -Method GET -Uri "$currentEndpoint/$($policy.id)" -ErrorAction Stop
+                        $fullPolicy = Invoke-MgGraphRequest -Method GET -Uri "$verifyEndpoint/$($policy.id)" -ErrorAction Stop
                         $isHydrationKitObject = Test-HydrationKitObject -Description $fullPolicy.description -Notes $fullPolicy.notes -ObjectName $policyName
                     } catch {
-                        Write-Verbose "Could not verify hydration marker for '$policyName' from $currentEndpoint/$($policy.id): $_"
+                        Write-Verbose "Could not verify hydration marker for '$policyName' from $verifyEndpoint/$($policy.id): $_"
                     }
                 }
 
@@ -82,7 +95,7 @@ function Get-HydrationDeleteCandidates {
                 $deleteCandidates += @{
                     Name = $policyName
                     Id   = $policy.id
-                    Url  = "/$($currentEndpoint -replace '^beta/', '')/$($policy.id)"
+                    Url  = "$currentDeleteBaseUrl/$($policy.id)"
                 }
             }
         } catch {

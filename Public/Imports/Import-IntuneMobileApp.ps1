@@ -84,37 +84,8 @@ function Import-IntuneMobileApp {
         return @()
     }
 
-    # Prefetch existing mobile apps (paged)
-    $existingApps = @{}
-    $listUri = "beta/deviceAppManagement/mobileApps?`$select=id,displayName,notes"
-    try {
-        do {
-            $existingResponse = Invoke-MgGraphRequest -Method GET -Uri $listUri -ErrorAction Stop
-            foreach ($app in $existingResponse.value) {
-                $appName = $app.displayName
-                if ($appName) {
-                    $isTagged = Test-HydrationKitObject -Notes $app.notes
-                    if (-not $existingApps.ContainsKey($appName)) {
-                        $existingApps[$appName] = @{
-                            Id       = $app.id
-                            Notes    = $app.notes
-                            IsTagged = $isTagged
-                        }
-                    } elseif ($isTagged -and -not $existingApps[$appName].IsTagged) {
-                        # Prefer the tagged (kit-created) version
-                        $existingApps[$appName] = @{
-                            Id       = $app.id
-                            Notes    = $app.notes
-                            IsTagged = $true
-                        }
-                    }
-                }
-            }
-            $listUri = $existingResponse.'@odata.nextLink'
-        } while ($listUri)
-    } catch {
-        Write-Warning "Failed to list existing mobile apps: $($_.Exception.Message)"
-    }
+    $existingApps = Get-HydrationExistingObjectMap `
+        -Uri "beta/deviceAppManagement/mobileApps?`$select=id,displayName,notes"
 
     $results = @()
 

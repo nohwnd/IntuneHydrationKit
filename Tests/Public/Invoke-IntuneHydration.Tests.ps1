@@ -701,6 +701,7 @@ Describe 'Invoke-IntuneHydration' {
             Mock Import-IntuneLinuxScript { @() } -ModuleName IntuneHydrationKit
             Mock Import-CISBaseline { @() } -ModuleName IntuneHydrationKit
             Mock New-IntuneDynamicGroup { @{ Action = 'Created'; Id = 'test-id' } } -ModuleName IntuneHydrationKit
+            Mock Invoke-HydrationGroupStep { @() } -ModuleName IntuneHydrationKit
             Mock Invoke-GroupBatchImport { @() } -ModuleName IntuneHydrationKit
         }
 
@@ -805,6 +806,30 @@ Describe 'Invoke-IntuneHydration' {
             Should -Invoke Import-IntuneConditionalAccessPolicy -ModuleName IntuneHydrationKit -Times 1
             Should -Invoke Import-IntuneWinGetApp -ModuleName IntuneHydrationKit -Times 1
             Should -Invoke Import-IntuneLinuxScript -ModuleName IntuneHydrationKit -Times 1
+        }
+
+        It 'Should scope delete all with Linux platform to Linux-capable workloads only' {
+            Invoke-IntuneHydration -TenantId '12345678-1234-1234-1234-123456789abc' -Interactive -Delete -All -Platform Linux -Force
+
+            Should -Invoke Import-CISBaseline -ModuleName IntuneHydrationKit -Times 1 -ParameterFilter {
+                $RemoveExisting -eq $true -and @($Platform).Count -eq 1 -and $Platform[0] -eq 'Linux'
+            }
+            Should -Invoke Import-IntuneCompliancePolicy -ModuleName IntuneHydrationKit -Times 1 -ParameterFilter {
+                $RemoveExisting -eq $true -and @($Platform).Count -eq 1 -and $Platform[0] -eq 'Linux'
+            }
+            Should -Invoke Import-IntuneLinuxScript -ModuleName IntuneHydrationKit -Times 1 -ParameterFilter {
+                $RemoveExisting -eq $true -and @($Platform).Count -eq 1 -and $Platform[0] -eq 'Linux'
+            }
+
+            Should -Invoke Invoke-HydrationGroupStep -ModuleName IntuneHydrationKit -Times 0
+            Should -Invoke Import-IntuneDeviceFilter -ModuleName IntuneHydrationKit -Times 0
+            Should -Invoke Import-IntuneBaseline -ModuleName IntuneHydrationKit -Times 0
+            Should -Invoke Import-IntuneNotificationTemplate -ModuleName IntuneHydrationKit -Times 0
+            Should -Invoke Import-IntuneAppProtectionPolicy -ModuleName IntuneHydrationKit -Times 0
+            Should -Invoke Import-IntuneEnrollmentProfile -ModuleName IntuneHydrationKit -Times 0
+            Should -Invoke Import-IntuneConditionalAccessPolicy -ModuleName IntuneHydrationKit -Times 0
+            Should -Invoke Import-IntuneMobileApp -ModuleName IntuneHydrationKit -Times 0
+            Should -Invoke Import-IntuneWinGetApp -ModuleName IntuneHydrationKit -Times 0
         }
 
         It 'Should call Import-IntuneBaseline without BaselinePath parameter' {

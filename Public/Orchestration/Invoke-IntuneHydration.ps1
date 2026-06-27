@@ -68,7 +68,7 @@ function Invoke-IntuneHydration {
         Filter imports by platform. Valid values: Windows, macOS, iOS, Android, Linux, All.
         Defaults to 'All' which imports resources for all platforms.
         This affects: ComplianceTemplates, DeviceFilters, AppProtection, MobileApps, EnrollmentProfiles, OpenIntuneBaseline, LinuxScripts.
-        Cross-platform resources (DynamicGroups, StaticGroups, ConditionalAccess, NotificationTemplates) are not filtered.
+        In delete mode, platform-neutral resources are skipped when a specific platform is selected.
     .PARAMETER ReportOutputPath
         Output directory for reports
     .PARAMETER ReportFormats
@@ -296,6 +296,19 @@ function Invoke-IntuneHydration {
         }
         $settings = Resolve-HydrationExecutionSettings @resolveSettingsParams
 
+        # Apply options from settings
+        $createEnabled = $settings.options.create -eq $true
+        $deleteEnabled = $settings.options.delete -eq $true
+        $forceDelete = $settings.options.force -eq $true
+        $RemoveExisting = $deleteEnabled
+
+        $platformFilters = Get-HydrationPlatformFilters -Platforms $settings.platforms
+        $settings.imports = Resolve-HydrationPlatformScopedImport `
+            -Imports $settings.imports `
+            -PlatformFilters $platformFilters `
+            -Platforms $settings.platforms `
+            -DeleteMode:$deleteEnabled
+
         if ($PSCmdlet.ParameterSetName -eq 'InteractiveTui') {
             $null = Show-HydrationTuiReview -Settings $settings
             $confirmed = Confirm-HydrationTuiChoice -Prompt 'Run hydration with these settings?' -Default:$false -ClearScreen:$false
@@ -306,7 +319,7 @@ function Invoke-IntuneHydration {
         }
 
         Write-HydrationExecutionSettingsSummary -Settings $settings
-        $platformFilters = Get-HydrationPlatformFilters -Platforms $settings.platforms
+
         $preflightMobileAppConfiguration = Get-MobileAppImportConfiguration -Settings $settings
         $effectiveWhatIfEnabled = [bool]$WhatIfPreference -or ($settings.options.dryRun -eq $true)
         $effectiveVerboseEnabled = ($VerbosePreference -eq 'Continue') -or ($settings.options.verbose -eq $true)
@@ -314,12 +327,6 @@ function Invoke-IntuneHydration {
             $VerbosePreference = 'Continue'
             Write-Verbose 'Verbose output enabled for this hydration run'
         }
-
-        # Apply options from settings
-        $createEnabled = $settings.options.create -eq $true
-        $deleteEnabled = $settings.options.delete -eq $true
-        $forceDelete = $settings.options.force -eq $true
-        $RemoveExisting = $deleteEnabled
 
         $testOperationSettingsParams = @{
             CreateEnabled = $createEnabled
@@ -536,7 +543,7 @@ function Invoke-IntuneHydration {
         }
 
         # Step 6b: Linux Scripts
-        if ($settings.imports.linuxScripts -and $platformFilters.LinuxScripts.Count -gt 0) {
+        if ($settings.imports.linuxScripts) {
             $stepAction = if ($RemoveExisting) { "Deleting" } else { "Importing" }
             $logParams = @{
                 Message = "Step 6b: $stepAction Linux scripts"

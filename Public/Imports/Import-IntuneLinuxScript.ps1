@@ -3,13 +3,13 @@ function Import-IntuneLinuxScript {
     .SYNOPSIS
         Imports Linux shell scripts from bundled templates.
     .DESCRIPTION
-        Reads JSON templates from Templates/LinuxScripts and creates Linux shell scripts via Graph.
+        Reads JSON templates from Templates/LinuxScripts and creates Linux custom configuration policies via Graph.
     .PARAMETER TemplatePath
         Path to the Linux script template directory (defaults to Templates/LinuxScripts).
     .PARAMETER Platform
         Filter templates by platform. Linux scripts are imported only when Linux or All is selected.
     .PARAMETER RemoveExisting
-        Deletes matching Linux shell scripts created by this kit instead of creating new ones.
+        Deletes matching Linux custom configuration policies created by this kit instead of creating new ones.
     .EXAMPLE
         Import-IntuneLinuxScript
     .EXAMPLE
@@ -49,63 +49,24 @@ function Import-IntuneLinuxScript {
         return @()
     }
 
-    $existingScripts = @{}
-    try {
-        Get-GraphPagedResults -Uri "beta/deviceManagement/deviceShellScripts?`$select=id,displayName,description" -ProcessItems {
-            param($items)
-
-            foreach ($script in $items) {
-                if (-not $script.displayName) {
-                    continue
-                }
-
-                $isTagged = Test-HydrationKitObject -Description $script.description
-                if (-not $existingScripts.ContainsKey($script.displayName) -or
-                    ($isTagged -and -not $existingScripts[$script.displayName].IsTagged)) {
-                    $existingScripts[$script.displayName] = @{
-                        Id          = $script.id
-                        Description = $script.description
-                        IsTagged    = $isTagged
-                    }
-                }
-            }
-        }
-    } catch {
-        Write-Warning "Could not retrieve existing Linux scripts: $_"
-        $existingScripts = @{}
-    }
-
+    $linuxScriptPolicyUri = "beta/deviceManagement/configurationPolicies?`$select=id,name,description,platforms,technologies,templateReference&`$filter=templateReference/TemplateFamily eq 'deviceConfigurationScripts'&`$top=50"
     $results = @()
 
     if ($RemoveExisting) {
         $knownTemplateNames = Get-TemplateDisplayNames -Path $TemplatePath -Recurse
-        $scriptsToDelete = @()
-        foreach ($scriptName in $existingScripts.Keys) {
-            $scriptInfo = $existingScripts[$scriptName]
-            if (-not (Test-HydrationKitObject -Description $scriptInfo.Description -ObjectName $scriptName)) {
-                Write-Verbose "Skipping '$scriptName' - not created by Intune Hydration Kit"
-                continue
-            }
-
-            $escapedPrefix = [regex]::Escape($script:ImportPrefix)
-            $nameForLookup = $scriptName -replace "^$escapedPrefix", ''
-            if (-not ($knownTemplateNames.Contains($scriptName) -or $knownTemplateNames.Contains($nameForLookup))) {
-                Write-Verbose "Skipping '$scriptName' - not in this kit's Linux script templates"
-                continue
-            }
-
-            $scriptsToDelete += @{
-                Name = $scriptName
-                Id   = $scriptInfo.Id
-            }
-        }
+        $scriptsToDelete = Get-HydrationDeleteCandidates `
+            -Endpoint $linuxScriptPolicyUri `
+            -DeleteBaseUrl '/deviceManagement/configurationPolicies' `
+            -KnownTemplateNames $knownTemplateNames `
+            -RequireTemplateMatch
 
         if ($scriptsToDelete.Count -eq 0) {
             Write-Verbose 'No Linux scripts found to delete'
             return $results
         }
 
-        if (-not $PSCmdlet.ShouldProcess("$($scriptsToDelete.Count) Linux script(s)", 'Delete')) {
+        $deleteTarget = "$($scriptsToDelete.Count) Linux script configuration policy/policies"
+        if (-not $PSCmdlet.ShouldProcess($deleteTarget, 'Delete')) {
             if ($WhatIfPreference) {
                 foreach ($script in $scriptsToDelete) {
                     Write-HydrationLog -Message "  WouldDelete: $($script.Name)" -Level Info
@@ -115,9 +76,14 @@ function Import-IntuneLinuxScript {
             return $results
         }
 
-        $results += Invoke-GraphBatchOperation -Items $scriptsToDelete -Operation 'DELETE' -BaseUrl '/deviceManagement/deviceShellScripts' -ResultType 'LinuxScript'
+        $results += Invoke-GraphBatchOperation -Items $scriptsToDelete -Operation 'DELETE' -ResultType 'LinuxScript'
+
         return $results
     }
+
+    $existingScripts = Get-HydrationExistingObjectMap `
+        -Uri $linuxScriptPolicyUri `
+        -NameProperty 'name'
 
     $scriptsToCreate = @()
     foreach ($templateFile in $templateFiles) {
@@ -156,23 +122,23 @@ function Import-IntuneLinuxScript {
                 continue
             }
 
-            $scriptBody = @{
-                displayName                 = $displayName
-                description                 = New-HydrationDescription -ExistingText $template.description
-                fileName                    = if ($template.fileName) { $template.fileName } else { $templateFile.Name -replace '\.json$', '.sh' }
-                scriptContent               = $template.scriptContentBase64
-                runAsAccount                = if ($template.runAsAccount) { $template.runAsAccount } else { 'system' }
-                executionFrequency          = if ($template.executionFrequency) { $template.executionFrequency } else { 'PT0S' }
-                retryCount                  = if ($null -ne $template.retryCount) { [int]$template.retryCount } else { 3 }
-                blockExecutionNotifications = if ($null -ne $template.blockExecutionNotifications) { [bool]$template.blockExecutionNotifications } else { $false }
-                roleScopeTagIds             = if ($template.roleScopeTagIds) { @($template.roleScopeTagIds) } else { @('0') }
+            [string[]]$roleScopeTagIds = if ($template.roleScopeTagIds) {
+                @($template.roleScopeTagIds)
+            } else {
+                @('0')
             }
+
+            $scriptBody = New-HydrationLinuxScriptConfigurationPolicyBody `
+                -Name $displayName `
+                -Description (New-HydrationDescription -ExistingText $template.description) `
+                -RoleScopeTagIds $roleScopeTagIds `
+                -ScriptContentBase64 $template.scriptContentBase64
 
             $scriptsToCreate += @{
                 Name     = $displayName
                 Path     = $templateFile.FullName
                 Platform = 'Linux'
-                BodyJson = ($scriptBody | ConvertTo-Json -Depth 20 -Compress)
+                BodyJson = ($scriptBody | ConvertTo-Json -Depth 100 -Compress)
             }
         } catch {
             $errMessage = Get-GraphErrorMessage -ErrorRecord $_
@@ -192,7 +158,7 @@ function Import-IntuneLinuxScript {
     }
 
     if ($scriptsToCreate.Count -gt 0) {
-        $results += Invoke-GraphBatchOperation -Items $scriptsToCreate -Operation 'POST' -BaseUrl '/deviceManagement/deviceShellScripts' -ResultType 'LinuxScript'
+        $results += Invoke-GraphBatchOperation -Items $scriptsToCreate -Operation 'POST' -BaseUrl '/deviceManagement/configurationPolicies' -ResultType 'LinuxScript'
     }
 
     return $results

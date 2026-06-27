@@ -43,102 +43,43 @@ function Import-IntuneCompliancePolicy {
         return @()
     }
 
-    # Prefetch existing compliance policies (paged) from both classic and linux endpoints
-    # Store full policy objects so we can check descriptions later
-    $existingPolicies = @{}
-    # Each endpoint has different property names - use endpoint-specific $select
-    $endpointsToList = @(
-        @{ Uri = "beta/deviceManagement/deviceCompliancePolicies"; Select = "id,displayName,description" },
-        @{ Uri = "beta/deviceManagement/compliancePolicies"; Select = "id,name,description" }
-    )
-    foreach ($ep in $endpointsToList) {
-        $listUri = "$($ep.Uri)`?`$select=$($ep.Select)"
-        try {
-            do {
-                $existingResponse = Invoke-MgGraphRequest -Method GET -Uri $listUri -ErrorAction Stop
-                foreach ($policy in $existingResponse.value) {
-                    $policyName = if ($policy.displayName) { $policy.displayName } elseif ($policy.name) { $policy.name } else { $null }
-                    if ($policyName) {
-                        $isTagged = Test-HydrationKitObject -Description $policy.description
-                        if (-not $existingPolicies.ContainsKey($policyName)) {
-                            $existingPolicies[$policyName] = @{
-                                Id          = $policy.id
-                                Description = $policy.description
-                                Endpoint    = $ep.Uri
-                                IsTagged    = $isTagged
-                            }
-                        } elseif ($isTagged -and -not $existingPolicies[$policyName].IsTagged) {
-                            $existingPolicies[$policyName] = @{
-                                Id          = $policy.id
-                                Description = $policy.description
-                                Endpoint    = $ep.Uri
-                                IsTagged    = $true
-                            }
-                        }
-                    }
-                }
-                $listUri = $existingResponse.'@odata.nextLink'
-            } while ($listUri)
-        } catch {
-            Write-Warning "Failed to list compliance policies from $($ep.Uri): $_"
-            continue
-        }
-    }
-
+    $linuxDiscoveryScriptReusableSettingDefinitionId = 'linux_customcompliance_discoveryscript_reusablesetting'
     $results = @()
 
     # Remove existing policies if requested
-    # SAFETY: Only delete policies that have "Imported by Intune Hydration Kit" in description
+    # SAFETY: Only delete policies with both hydration marker and matching selected template name.
     if ($RemoveExisting) {
-        # Collect policies to delete (only those with hydration marker)
-        $policiesToDelete = @()
-        foreach ($policyName in $existingPolicies.Keys) {
-            $policyInfo = $existingPolicies[$policyName]
-
-            # Safety check: Only delete if created by this kit (has hydration marker in description)
-            if (-not (Test-HydrationKitObject -Description $policyInfo.Description -ObjectName $policyName)) {
-                Write-Verbose "Skipping '$policyName' - not created by Intune Hydration Kit"
-                continue
-            }
-
-            $policiesToDelete += @{
-                Name = $policyName
-                Id   = $policyInfo.Id
-                Url  = "/$($policyInfo.Endpoint -replace '^beta/', '')/$($policyInfo.Id)"
-            }
-        }
+        $knownPolicyNames = Get-HydrationCompliancePolicyTemplateNameSet -TemplateFile $templateFiles
+        $deleteEndpoints = @(
+            'beta/deviceManagement/deviceCompliancePolicies',
+            'beta/deviceManagement/compliancePolicies'
+        )
+        $policiesToDelete = Get-HydrationDeleteCandidates -Endpoint $deleteEndpoints -KnownTemplateNames $knownPolicyNames -RequireTemplateMatch
 
         $scriptsToDelete = @()
+        $reusableSettingsToDelete = @()
         $knownScriptNames = Get-HydrationComplianceScriptTemplateNameSet -TemplateFile $templateFiles
         if ($knownScriptNames.Count -gt 0) {
-            $existingComplianceScripts = Get-HydrationComplianceScriptMap
+            $scriptsToDelete = Get-HydrationDeleteCandidates `
+                -Endpoint "beta/deviceManagement/deviceComplianceScripts?`$select=id,displayName,description" `
+                -DeleteBaseUrl '/deviceManagement/deviceComplianceScripts' `
+                -KnownTemplateNames $knownScriptNames `
+                -RequireTemplateMatch
 
-            foreach ($scriptName in $existingComplianceScripts.Keys) {
-                $scriptInfo = $existingComplianceScripts[$scriptName]
-                if (-not (Test-HydrationKitObject -Description $scriptInfo.Description -ObjectName $scriptName)) {
-                    Write-Verbose "Skipping compliance script '$scriptName' - not created by Intune Hydration Kit"
-                    continue
-                }
-
-                if (-not $knownScriptNames.Contains($scriptName)) {
-                    Write-Verbose "Skipping compliance script '$scriptName' - not in this kit's compliance script templates"
-                    continue
-                }
-
-                $scriptsToDelete += @{
-                    Name = $scriptName
-                    Id   = $scriptInfo.Id
-                }
-            }
+            $reusableSettingsToDelete = Get-HydrationDeleteCandidates `
+                -Endpoint "beta/deviceManagement/reusablePolicySettings?`$select=id,displayName,description,settingDefinitionId&`$filter=settingDefinitionId eq '$linuxDiscoveryScriptReusableSettingDefinitionId'" `
+                -DeleteBaseUrl '/deviceManagement/reusablePolicySettings' `
+                -KnownTemplateNames $knownScriptNames `
+                -RequireTemplateMatch
         }
 
-        if (($policiesToDelete.Count + $scriptsToDelete.Count) -eq 0) {
-            Write-Verbose "No compliance policies or scripts found to delete"
+        if (($policiesToDelete.Count + $scriptsToDelete.Count + $reusableSettingsToDelete.Count) -eq 0) {
+            Write-Verbose "No compliance policies, scripts, or reusable settings found to delete"
             return $results
         }
 
         # Handle WhatIf mode
-        $deleteTarget = "$($policiesToDelete.Count) compliance policy/policies and $($scriptsToDelete.Count) compliance script(s)"
+        $deleteTarget = "$($policiesToDelete.Count) compliance policy/policies, $($scriptsToDelete.Count) compliance script(s), and $($reusableSettingsToDelete.Count) reusable setting(s)"
         if (-not $PSCmdlet.ShouldProcess($deleteTarget, "Delete")) {
             foreach ($policy in $policiesToDelete) {
                 Write-HydrationLog -Message "  WouldDelete: $($policy.Name)" -Level Info
@@ -147,6 +88,10 @@ function Import-IntuneCompliancePolicy {
             foreach ($scriptItem in $scriptsToDelete) {
                 Write-HydrationLog -Message "  WouldDelete: $($scriptItem.Name)" -Level Info
                 $results += New-HydrationResult -Name $scriptItem.Name -Type 'ComplianceScript' -Action 'WouldDelete' -Status 'DryRun'
+            }
+            foreach ($settingItem in $reusableSettingsToDelete) {
+                Write-HydrationLog -Message "  WouldDelete: $($settingItem.Name)" -Level Info
+                $results += New-HydrationResult -Name $settingItem.Name -Type 'ReusablePolicySetting' -Action 'WouldDelete' -Status 'DryRun'
             }
             return $results
         }
@@ -157,26 +102,61 @@ function Import-IntuneCompliancePolicy {
         if ($scriptsToDelete.Count -gt 0) {
             $results += Invoke-GraphBatchOperation -Items $scriptsToDelete -Operation 'DELETE' -BaseUrl '/deviceManagement/deviceComplianceScripts' -ResultType 'ComplianceScript'
         }
+        if ($reusableSettingsToDelete.Count -gt 0) {
+            $results += Invoke-GraphBatchOperation -Items $reusableSettingsToDelete -Operation 'DELETE' -BaseUrl '/deviceManagement/reusablePolicySettings' -ResultType 'ReusablePolicySetting'
+        }
 
         return $results
+    }
+
+    $existingPolicies = @{}
+    $endpointsToList = @(
+        @{ Uri = 'beta/deviceManagement/deviceCompliancePolicies'; Select = 'id,displayName,description'; NameProperty = 'displayName' },
+        @{ Uri = 'beta/deviceManagement/compliancePolicies'; Select = 'id,name,description'; NameProperty = 'name' }
+    )
+    foreach ($ep in $endpointsToList) {
+        $listUri = "$($ep.Uri)`?`$select=$($ep.Select)"
+        $endpointPolicies = Get-HydrationExistingObjectMap `
+            -Uri $listUri `
+            -NameProperty $ep.NameProperty `
+            -Endpoint $ep.Uri
+
+        foreach ($policyName in $endpointPolicies.Keys) {
+            if (-not $existingPolicies.ContainsKey($policyName) -or
+                ($endpointPolicies[$policyName].IsTagged -and -not $existingPolicies[$policyName].IsTagged)) {
+                $existingPolicies[$policyName] = $endpointPolicies[$policyName]
+            }
+        }
     }
 
     # Collect policies to create - separate standard and custom (with scripts)
     $standardPoliciesToCreate = @()
     $customPoliciesToCreate = @()
+    $linuxCustomPoliciesToCreate = @()
 
     foreach ($templateFile in $templateFiles) {
         try {
             $template = Get-Content -Path $templateFile.FullName -Raw -Encoding utf8 | ConvertFrom-Json
-            $displayName = "$($script:ImportPrefix)$($template.displayName)"
-            if (-not $template.displayName) {
-                Write-Warning "Template missing displayName: $($templateFile.FullName)"
+            $isLinuxCompliance = $template.platforms -eq 'linux' -and $template.technologies -eq 'linuxMdm'
+            $templatePolicyName = if ($template.displayName) {
+                $template.displayName
+            } elseif ($isLinuxCompliance -and $template.name) {
+                $template.name
+            } else {
+                $null
+            }
+            if (-not $templatePolicyName) {
+                Write-Warning "Template missing displayName/name: $($templateFile.FullName)"
                 $results += New-HydrationResult -Name $templateFile.Name -Path $templateFile.FullName -Type 'CompliancePolicy' -Action 'Failed' -Status 'Missing displayName'
                 continue
             }
+            $displayName = if ($templatePolicyName.StartsWith($script:ImportPrefix)) {
+                $templatePolicyName
+            } else {
+                "$($script:ImportPrefix)$templatePolicyName"
+            }
 
             # Choose endpoint: Linux uses compliancePolicies, others use deviceCompliancePolicies
-            $isLinuxCompliance = $template.platforms -eq 'linux' -and $template.technologies -eq 'linuxMdm'
             $endpoint = if ($isLinuxCompliance) {
                 "deviceManagement/compliancePolicies"
             } else {
@@ -185,10 +165,10 @@ function Import-IntuneCompliancePolicy {
 
             # Check both prefixed and unprefixed names to avoid duplicates when upgrading from pre-prefix tenants
             $lookupNames = @($displayName)
-            if ($template.displayName -and $template.displayName -ne $displayName) {
-                $lookupNames += $template.displayName
+            if ($templatePolicyName -ne $displayName) {
+                $lookupNames += $templatePolicyName
             }
-            if ($isLinuxCompliance -and $template.name -and $template.name -ne $template.displayName) {
+            if ($isLinuxCompliance -and $template.name -and $template.name -ne $templatePolicyName) {
                 $lookupNames += $template.name
             }
 
@@ -197,26 +177,6 @@ function Import-IntuneCompliancePolicy {
                 if ($existingPolicies.ContainsKey($ln) -and $existingPolicies[$ln].IsTagged) {
                     $alreadyExists = $true
                     break
-                }
-            }
-
-            # Verify via targeted GET to guard against stale prefetch data after deletes
-            if ($alreadyExists) {
-                $matchedName = $lookupNames | Where-Object { $existingPolicies.ContainsKey($_) -and $existingPolicies[$_].IsTagged } | Select-Object -First 1
-                $matchedPolicy = $existingPolicies[$matchedName]
-                $verifyEndpoint = if ($matchedPolicy.Endpoint -match '^beta/') {
-                    $matchedPolicy.Endpoint
-                } else {
-                    "beta/$($matchedPolicy.Endpoint)"
-                }
-                $verifyUri = "$verifyEndpoint/$($matchedPolicy.Id)"
-                try {
-                    $null = Invoke-MgGraphRequest -Method GET -Uri $verifyUri -ErrorAction Stop
-                } catch {
-                    if ($_.Exception.Message -match '404|NotFound') {
-                        Write-Verbose "Policy '$matchedName' returned 404 on verify - stale data, will create"
-                        $alreadyExists = $false
-                    }
                 }
             }
 
@@ -241,7 +201,20 @@ function Import-IntuneCompliancePolicy {
             }
 
             # Custom compliance policies with scripts need sequential processing
-            if ($importBody.deviceCompliancePolicyScript) {
+            $isLinuxCustomCompliance = $isLinuxCompliance -and $importBody.PSObject.Properties['deviceCompliancePolicyScriptDefinition']
+            if ($isLinuxCustomCompliance) {
+                if ($importBody.PSObject.Properties['deviceCompliancePolicyScript']) {
+                    $null = $importBody.PSObject.Properties.Remove('deviceCompliancePolicyScript')
+                }
+
+                $linuxCustomPoliciesToCreate += @{
+                    Name       = $displayName
+                    Path       = $templateFile.FullName
+                    Endpoint   = $endpoint
+                    ImportBody = $importBody
+                    Template   = $template
+                }
+            } elseif ($importBody.deviceCompliancePolicyScript) {
                 $customPoliciesToCreate += @{
                     Name       = $displayName
                     Path       = $templateFile.FullName
@@ -271,8 +244,13 @@ function Import-IntuneCompliancePolicy {
     }
 
     # Handle WhatIf mode
-    if (-not $PSCmdlet.ShouldProcess("$($standardPoliciesToCreate.Count + $customPoliciesToCreate.Count) compliance policies", "Create")) {
+    $policiesToCreateCount = $standardPoliciesToCreate.Count + $customPoliciesToCreate.Count + $linuxCustomPoliciesToCreate.Count
+    if (-not $PSCmdlet.ShouldProcess("$policiesToCreateCount compliance policies", "Create")) {
         foreach ($policy in $standardPoliciesToCreate) {
+            Write-HydrationLog -Message "  WouldCreate: $($policy.Name)" -Level Info
+            $results += New-HydrationResult -Name $policy.Name -Path $policy.Path -Type 'CompliancePolicy' -Action 'WouldCreate' -Status 'DryRun'
+        }
+        foreach ($policy in $linuxCustomPoliciesToCreate) {
             Write-HydrationLog -Message "  WouldCreate: $($policy.Name)" -Level Info
             $results += New-HydrationResult -Name $policy.Name -Path $policy.Path -Type 'CompliancePolicy' -Action 'WouldCreate' -Status 'DryRun'
         }
@@ -288,82 +266,22 @@ function Import-IntuneCompliancePolicy {
         $results += Invoke-GraphBatchOperation -Items $standardPoliciesToCreate -Operation 'POST' -ResultType 'CompliancePolicy'
     }
 
-    $existingComplianceScripts = if ($customPoliciesToCreate.Count -gt 0) { Get-HydrationComplianceScriptMap } else { @{} }
+    if ($linuxCustomPoliciesToCreate.Count -gt 0) {
+        $existingReusableSettings = Get-HydrationReusablePolicySettingMap -SettingDefinitionId $linuxDiscoveryScriptReusableSettingDefinitionId
+        $results += Invoke-HydrationCustomCompliancePolicyCreate `
+            -PolicyInfo $linuxCustomPoliciesToCreate `
+            -ExistingDependencyMap $existingReusableSettings `
+            -DependencyKind ReusablePolicySetting `
+            -ReusableSettingDefinitionId $linuxDiscoveryScriptReusableSettingDefinitionId
+    }
 
-    # Process custom compliance policies with scripts sequentially (require script creation first)
-    foreach ($policyInfo in $customPoliciesToCreate) {
-        $displayName = $policyInfo.Name
-        $templateFile = @{ FullName = $policyInfo.Path }
-        $importBody = $policyInfo.ImportBody
-        $template = $policyInfo.Template
-        $endpoint = "beta/$($policyInfo.Endpoint)"
-
-        try {
-            $scriptDefinition = $template.deviceCompliancePolicyScriptDefinition
-            $scriptName = Get-HydrationComplianceScriptName -ScriptDefinition $scriptDefinition -PolicyDisplayName $displayName
-
-            # Step 1: Check if compliance script already exists or create it
-            $scriptId = $null
-            if ($existingComplianceScripts.ContainsKey($scriptName.DisplayName)) {
-                $scriptId = $existingComplianceScripts[$scriptName.DisplayName].Id
-            } elseif ($existingComplianceScripts.ContainsKey($scriptName.BaseName)) {
-                $scriptId = $existingComplianceScripts[$scriptName.BaseName].Id
-            } elseif ($scriptDefinition -and $scriptDefinition.detectionScriptContentBase64) {
-                # Create the compliance script
-                $scriptBody = @{
-                    description            = New-HydrationDescription -ExistingText $(if ($scriptDefinition.description) { $scriptDefinition.description } else { "" })
-                    detectionScriptContent = $scriptDefinition.detectionScriptContentBase64
-                    displayName            = $scriptName.DisplayName
-                    enforceSignatureCheck  = [bool]$scriptDefinition.enforceSignatureCheck
-                    publisher              = if ($scriptDefinition.publisher) { $scriptDefinition.publisher } else { "Publisher" }
-                    runAs32Bit             = [bool]$scriptDefinition.runAs32Bit
-                    runAsAccount           = if ($scriptDefinition.runAsAccount) { $scriptDefinition.runAsAccount } else { "system" }
-                }
-
-                $newScript = Invoke-MgGraphRequest -Method POST -Uri "beta/deviceManagement/deviceComplianceScripts" -Body ($scriptBody | ConvertTo-Json -Depth 10) -ContentType "application/json" -ErrorAction Stop
-                $scriptId = $newScript.id
-                $existingComplianceScripts[$scriptName.DisplayName] = @{
-                    Id          = $scriptId
-                    Description = $scriptBody.description
-                    IsTagged    = $true
-                }
-            } else {
-                Write-Warning "Skipping compliance policy '$displayName' - no script definition found with detectionScriptContentBase64"
-                $results += New-HydrationResult -Name $displayName -Path $templateFile.FullName -Type 'CompliancePolicy' -Action 'Failed' -Status 'Missing detectionScriptContentBase64 in deviceCompliancePolicyScriptDefinition'
-                continue
-            }
-
-            # Step 2: Convert rules to base64
-            $rulesSource = $scriptDefinition.rules
-            if (-not $rulesSource) {
-                Write-Warning "Skipping compliance policy '$displayName' - no rules found in deviceCompliancePolicyScriptDefinition"
-                $results += New-HydrationResult -Name $displayName -Path $templateFile.FullName -Type 'CompliancePolicy' -Action 'Failed' -Status 'Missing rules in deviceCompliancePolicyScriptDefinition'
-                continue
-            }
-
-            $rulesJson = $rulesSource | ConvertTo-Json -Depth 100 -Compress
-            $rulesBytes = [System.Text.Encoding]::UTF8.GetBytes($rulesJson)
-            $rulesBase64 = [System.Convert]::ToBase64String($rulesBytes)
-
-            # Step 3: Update the policy body with resolved values
-            $importBody.deviceCompliancePolicyScript = @{
-                deviceComplianceScriptId = $scriptId
-                rulesContent             = $rulesBase64
-            }
-
-            # Remove internal helper definition before sending
-            if ($importBody.PSObject.Properties['deviceCompliancePolicyScriptDefinition']) {
-                $null = $importBody.PSObject.Properties.Remove('deviceCompliancePolicyScriptDefinition')
-            }
-
-            $null = Invoke-MgGraphRequest -Method POST -Uri $endpoint -Body ($importBody | ConvertTo-Json -Depth 100) -ContentType 'application/json' -ErrorAction Stop
-            Write-HydrationLog -Message "  Created: $displayName" -Level Info
-            $results += New-HydrationResult -Name $displayName -Path $templateFile.FullName -Type 'CompliancePolicy' -Action 'Created' -Status 'Success'
-        } catch {
-            $errMessage = Get-GraphErrorMessage -ErrorRecord $_
-            Write-HydrationLog -Message "  Failed: $displayName - $errMessage" -Level Warning
-            $results += New-HydrationResult -Name $displayName -Path $templateFile.FullName -Type 'CompliancePolicy' -Action 'Failed' -Status $errMessage
-        }
+    if ($customPoliciesToCreate.Count -gt 0) {
+        $existingComplianceScripts = Get-HydrationExistingObjectMap `
+            -Uri "beta/deviceManagement/deviceComplianceScripts?`$select=id,displayName,description"
+        $results += Invoke-HydrationCustomCompliancePolicyCreate `
+            -PolicyInfo $customPoliciesToCreate `
+            -ExistingDependencyMap $existingComplianceScripts `
+            -DependencyKind DeviceComplianceScript
     }
 
     return $results

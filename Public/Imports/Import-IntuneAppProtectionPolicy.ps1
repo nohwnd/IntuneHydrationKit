@@ -56,34 +56,15 @@ function Import-IntuneAppProtectionPolicy {
     # Note: App protection policies don't support $select for description, so we fetch all properties
     $existingPolicies = @{}
     foreach ($endpoint in @($endpointInfo | ForEach-Object { $_.Endpoint } | Select-Object -Unique)) {
-        try {
-            $listUri = $endpoint
-            do {
-                $existing = Invoke-MgGraphRequest -Method GET -Uri $listUri -ErrorAction Stop
-                foreach ($policy in $existing.value) {
-                    if ($policy.displayName) {
-                        $isTagged = Test-HydrationKitObject -Description $policy.description
-                        if (-not $existingPolicies.ContainsKey($policy.displayName)) {
-                            $existingPolicies[$policy.displayName] = @{
-                                Id          = $policy.id
-                                Description = $policy.description
-                                Endpoint    = $endpoint
-                                IsTagged    = $isTagged
-                            }
-                        } elseif ($isTagged -and -not $existingPolicies[$policy.displayName].IsTagged) {
-                            $existingPolicies[$policy.displayName] = @{
-                                Id          = $policy.id
-                                Description = $policy.description
-                                Endpoint    = $endpoint
-                                IsTagged    = $true
-                            }
-                        }
-                    }
-                }
-                $listUri = $existing.'@odata.nextLink'
-            } while ($listUri)
-        } catch {
-            Write-Warning "Could not retrieve existing policies from $endpoint`: $_"
+        $endpointPolicies = Get-HydrationExistingObjectMap `
+            -Uri $endpoint `
+            -Endpoint $endpoint
+
+        foreach ($policyName in $endpointPolicies.Keys) {
+            if (-not $existingPolicies.ContainsKey($policyName) -or
+                ($endpointPolicies[$policyName].IsTagged -and -not $existingPolicies[$policyName].IsTagged)) {
+                $existingPolicies[$policyName] = $endpointPolicies[$policyName]
+            }
         }
     }
 

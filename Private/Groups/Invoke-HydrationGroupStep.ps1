@@ -28,14 +28,21 @@ function Invoke-HydrationGroupStep {
     Write-HydrationLog @logParams
 
     if ($RemoveExisting) {
-        $knownNames = if (Test-Path -Path $TemplatePath) {
-            $templateNameParams = @{
-                Path          = $TemplatePath
-                ArrayProperty = 'groups'
+        $knownNames = $null
+        if (Test-Path -Path $TemplatePath) {
+            $groupDataParams = @{
+                TemplatePath = $TemplatePath
+                Platforms    = $Platforms
             }
-            Get-TemplateDisplayNames @templateNameParams
-        } else {
-            $null
+            $groupData = Get-HydrationGroupDefinitionsFromTemplates @groupDataParams
+            if ($groupData) {
+                $knownNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+                foreach ($groupDefinition in $groupData.Filtered) {
+                    if ($groupDefinition.displayName) {
+                        $null = $knownNames.Add($groupDefinition.displayName)
+                    }
+                }
+            }
         }
 
         $deleteGroupParams = @{

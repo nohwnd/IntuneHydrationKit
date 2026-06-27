@@ -53,21 +53,39 @@ Describe 'Import-IntuneLinuxScript' {
     }
 
     Context 'Create Mode' {
-        It 'Should create Linux shell script payloads through Graph batch' {
-            Mock Get-GraphPagedResults -ModuleName IntuneHydrationKit
+        It 'Should create Linux script configuration policy payloads through Graph batch' {
+            Mock Get-GraphPagedResults {
+                param($Uri)
+
+                $Uri | Should -BeLike 'beta/deviceManagement/configurationPolicies*deviceConfigurationScripts*'
+            } -ModuleName IntuneHydrationKit
             Mock Invoke-MgGraphRequest {
                 param($Method, $Uri, $Body)
 
                 if ($Method -eq 'POST' -and $Uri -like '*$batch*') {
                     $batch = $Body | ConvertFrom-Json
                     $request = $batch.requests[0]
-                    $request.url | Should -Be '/deviceManagement/deviceShellScripts'
-                    $request.body.displayName | Should -Be '[IHD] Linux - Default - Configuration - Test'
+                    $request.url | Should -Be '/deviceManagement/configurationPolicies'
+                    $request.body.name | Should -Be '[IHD] Linux - Default - Configuration - Test'
                     $request.body.description | Should -Match 'Imported by Intune Hydration Kit'
-                    $request.body.fileName | Should -Be 'test.sh'
-                    $request.body.runAsAccount | Should -Be 'system'
-                    $request.body.executionFrequency | Should -Be 'PT0S'
-                    $request.body.scriptContent | Should -Not -BeNullOrEmpty
+                    $request.body.platforms | Should -Be 'Linux'
+                    $request.body.technologies | Should -Be 'linuxMdm'
+                    $request.body.roleScopeTagIds.GetType().IsArray | Should -BeTrue
+                    $request.body.roleScopeTagIds | Should -Be @('0')
+                    $request.body.templateReference.templateId | Should -Be '92439f26-2b30-4503-8429-6d40f7e172dd_1'
+                    $request.body.PSObject.Properties.Name | Should -Not -Contain 'displayName'
+                    $request.body.PSObject.Properties.Name | Should -Not -Contain 'fileName'
+                    $request.body.PSObject.Properties.Name | Should -Not -Contain 'scriptContent'
+
+                    $request.body.settings | Should -HaveCount 4
+                    $request.body.settings[0].settingInstance.settingDefinitionId | Should -Be 'linux_customconfig_executioncontext'
+                    $request.body.settings[0].settingInstance.choiceSettingValue.value | Should -Be 'linux_customconfig_executioncontext_root'
+                    $request.body.settings[1].settingInstance.settingDefinitionId | Should -Be 'linux_customconfig_executionfrequency'
+                    $request.body.settings[1].settingInstance.choiceSettingValue.value | Should -Be 'linux_customconfig_executionfrequency_1week'
+                    $request.body.settings[2].settingInstance.settingDefinitionId | Should -Be 'linux_customconfig_executionretries'
+                    $request.body.settings[2].settingInstance.choiceSettingValue.value | Should -Be 'linux_customconfig_executionretries_3'
+                    $request.body.settings[3].settingInstance.settingDefinitionId | Should -Be 'linux_customconfig_script'
+                    $request.body.settings[3].settingInstance.simpleSettingValue.value | Should -Be ([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('#!/bin/bash')))
 
                     return @{
                         responses = @(
@@ -89,11 +107,11 @@ Describe 'Import-IntuneLinuxScript' {
             Mock Get-GraphPagedResults {
                 param($Uri, $ProcessItems)
 
-                $Uri | Should -BeLike 'beta/deviceManagement/deviceShellScripts*'
+                $Uri | Should -BeLike 'beta/deviceManagement/configurationPolicies*deviceConfigurationScripts*'
                 & $ProcessItems @(
                     @{
                         id          = 'existing-id'
-                        displayName = '[IHD] Linux - Default - Configuration - Test'
+                        name        = '[IHD] Linux - Default - Configuration - Test'
                         description = 'Imported by Intune Hydration Kit'
                     }
                 )
@@ -130,20 +148,20 @@ Describe 'Import-IntuneLinuxScript' {
     }
 
     Context 'Delete Mode' {
-        It 'Should delete only tagged scripts that match bundled template names' {
+        It 'Should delete tagged configuration policies that match bundled template names' {
             Mock Get-GraphPagedResults {
-                param($Uri, $ProcessItems)
+                param($Uri)
 
-                $Uri | Should -BeLike 'beta/deviceManagement/deviceShellScripts*'
-                & $ProcessItems @(
+                $Uri | Should -BeLike '*deviceConfigurationScripts*'
+                return @(
                     @{
                         id          = 'matching-id'
-                        displayName = '[IHD] Linux - Default - Configuration - Test'
+                        name        = '[IHD] Linux - Default - Configuration - Test'
                         description = 'Imported by Intune Hydration Kit'
                     }
                     @{
                         id          = 'other-id'
-                        displayName = '[IHD] Linux - Other'
+                        name        = '[IHD] Linux - Other'
                         description = 'Imported by Intune Hydration Kit'
                     }
                 )
@@ -152,14 +170,18 @@ Describe 'Import-IntuneLinuxScript' {
                 param($Method, $Uri, $Body)
 
                 if ($Method -eq 'POST' -and $Uri -like '*$batch*') {
+                    $requestUrl = $Body.requests[0].url
                     $Body.requests | Should -HaveCount 1
-                    $Body.requests[0].url | Should -Be '/deviceManagement/deviceShellScripts/matching-id'
 
-                    return @{
-                        responses = @(
-                            @{ id = '1'; status = 204; body = @{} }
-                        )
+                    if ($requestUrl -eq '/deviceManagement/configurationPolicies/matching-id') {
+                        return @{
+                            responses = @(
+                                @{ id = '1'; status = 204; body = @{} }
+                            )
+                        }
                     }
+
+                    throw "Unexpected delete URL: $requestUrl"
                 }
             } -ModuleName IntuneHydrationKit
 

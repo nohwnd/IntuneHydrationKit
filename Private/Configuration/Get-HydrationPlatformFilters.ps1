@@ -11,22 +11,14 @@ function Get-HydrationPlatformFilters {
             [string[]]$ValidSet,
 
             [Parameter(Mandatory)]
-            [string[]]$SelectedPlatforms,
-
-            [Parameter()]
-            [switch]$ReturnEmptyWhenNoMatch
+            [string[]]$SelectedPlatforms
         )
 
         if ($SelectedPlatforms -contains 'All') {
             return @('All')
         }
 
-        $validPlatforms = $SelectedPlatforms | Where-Object { $_ -in $ValidSet }
-        if ($validPlatforms.Count -eq 0 -and -not $ReturnEmptyWhenNoMatch) {
-            return @('All')
-        }
-
-        return $validPlatforms
+        return $SelectedPlatforms | Where-Object { $_ -in $ValidSet }
     }
 
     return @{
@@ -37,7 +29,7 @@ function Get-HydrationPlatformFilters {
         EnrollmentProfiles = Get-FilteredPlatforms -ValidSet @('Windows', 'macOS') -SelectedPlatforms $Platforms
         Baseline           = Get-FilteredPlatforms -ValidSet @('Windows', 'macOS', 'iOS', 'Android') -SelectedPlatforms $Platforms
         CISBaseline        = Get-FilteredPlatforms -ValidSet @('Windows', 'macOS', 'iOS', 'Android', 'Linux') -SelectedPlatforms $Platforms
-        LinuxScripts       = Get-FilteredPlatforms -ValidSet @('Linux') -SelectedPlatforms $Platforms -ReturnEmptyWhenNoMatch
+        LinuxScripts       = Get-FilteredPlatforms -ValidSet @('Linux') -SelectedPlatforms $Platforms
         Groups             = Get-FilteredPlatforms -ValidSet @('Windows', 'macOS', 'iOS', 'Android') -SelectedPlatforms $Platforms
     }
 }

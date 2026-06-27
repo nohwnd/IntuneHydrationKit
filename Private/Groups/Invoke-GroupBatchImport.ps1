@@ -100,6 +100,11 @@ function Invoke-GroupBatchImport {
     if ($Delete) {
         Write-Verbose "Delete mode: Finding $GroupType groups to delete..."
 
+        if ($PSBoundParameters.ContainsKey('KnownNames') -and $KnownNames.Count -eq 0) {
+            Write-Verbose "No $GroupType group template names are in scope for delete"
+            return $results
+        }
+
         # Build the filter based on group type
         $typeFilter = if ($GroupType -eq 'Dynamic') {
             "groupTypes/any(c:c eq 'DynamicMembership')"

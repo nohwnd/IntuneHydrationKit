@@ -51,37 +51,8 @@ function Import-IntuneDeviceFilter {
 
     $results = @()
 
-    # Prefetch existing filters with pagination (OData filter on displayName not supported for this endpoint)
-    # Store full filter objects so we can check descriptions later
-    $existingFilters = @{}
-    try {
-        $listUri = "beta/deviceManagement/assignmentFilters?`$select=id,displayName,description"
-        do {
-            $existingFiltersResponse = Invoke-MgGraphRequest -Method GET -Uri $listUri -ErrorAction Stop
-            foreach ($existingFilter in $existingFiltersResponse.value) {
-                if ($existingFilter.displayName) {
-                    $isTagged = Test-HydrationKitObject -Description $existingFilter.description
-                    if (-not $existingFilters.ContainsKey($existingFilter.displayName)) {
-                        $existingFilters[$existingFilter.displayName] = @{
-                            Id          = $existingFilter.id
-                            Description = $existingFilter.description
-                            IsTagged    = $isTagged
-                        }
-                    } elseif ($isTagged -and -not $existingFilters[$existingFilter.displayName].IsTagged) {
-                        $existingFilters[$existingFilter.displayName] = @{
-                            Id          = $existingFilter.id
-                            Description = $existingFilter.description
-                            IsTagged    = $true
-                        }
-                    }
-                }
-            }
-            $listUri = $existingFiltersResponse.'@odata.nextLink'
-        } while ($listUri)
-    } catch {
-        Write-Warning "Could not retrieve existing filters: $_"
-        $existingFilters = @{}
-    }
+    $existingFilters = Get-HydrationExistingObjectMap `
+        -Uri "beta/deviceManagement/assignmentFilters?`$select=id,displayName,description"
 
     # Remove existing filters if requested
     # SAFETY: Only delete filters that have "Imported by Intune Hydration Kit" in description

@@ -10,31 +10,46 @@ BeforeAll {
             [string]$PolicyName,
 
             [Parameter()]
-            [string]$ScriptName = 'Shared Compliance Script'
+            [string]$ScriptName = 'Shared Compliance Script',
+
+            [Parameter()]
+            [switch]$OmitRules,
+
+            [Parameter()]
+            [switch]$OmitDetectionScriptContent
         )
+
+        $scriptDefinition = @{
+            displayName                  = $ScriptName
+            description                  = 'Shared script'
+            detectionScriptContentBase64 = 'ZGV0ZWN0aW9u'
+            enforceSignatureCheck        = $false
+            runAs32Bit                   = $false
+            runAsAccount                 = 'system'
+            rules                        = @(
+                @{
+                    property = 'ComplianceState'
+                    operator = 'equals'
+                    value    = 'Compliant'
+                }
+            )
+        }
+        if ($OmitRules) {
+            $scriptDefinition.Remove('rules')
+        }
+        if ($OmitDetectionScriptContent) {
+            $scriptDefinition.Remove('detectionScriptContentBase64')
+        }
 
         @{
             '@odata.type'                          = '#microsoft.graph.windows10CompliancePolicy'
             displayName                            = $PolicyName
             description                            = 'Custom policy'
             deviceCompliancePolicyScript           = @{}
-            deviceCompliancePolicyScriptDefinition = @{
-                displayName                  = $ScriptName
-                description                  = 'Shared script'
-                detectionScriptContentBase64 = 'ZGV0ZWN0aW9u'
-                enforceSignatureCheck        = $false
-                runAs32Bit                   = $false
-                runAsAccount                 = 'system'
-                rules                        = @(
-                    @{
-                        property = 'ComplianceState'
-                        operator = 'equals'
-                        value    = 'Compliant'
-                    }
-                )
-            }
+            deviceCompliancePolicyScriptDefinition = $scriptDefinition
         } | ConvertTo-Json -Depth 10
     }
+
 }
 
 Describe 'Import-IntuneCompliancePolicy' {
@@ -242,6 +257,46 @@ Describe 'Import-IntuneCompliancePolicy' {
                 $Method -eq 'POST' -and $Uri -like '*$batch*'
             }
         }
+
+        It 'Should accept Linux compliance templates that use name without displayName' {
+            Mock Get-Content {
+                @'
+{
+    "@odata.type": "#microsoft.graph.linuxCompliancePolicy",
+    "description": "",
+    "platforms": "linux",
+    "technologies": "linuxMdm",
+    "name": "Linux Name Only Compliance Policy"
+}
+'@
+            } -ModuleName IntuneHydrationKit
+
+            $script:capturedLinuxBatchBody = $null
+            Mock Invoke-MgGraphRequest {
+                param($Method, $Uri, $Body)
+
+                if ($Method -eq 'GET') {
+                    return @{ value = @() }
+                }
+                if ($Method -eq 'POST' -and $Uri -like '*$batch*') {
+                    $script:capturedLinuxBatchBody = $Body | ConvertFrom-Json
+                    return @{
+                        responses = @(
+                            @{ id = '1'; status = 201; body = @{ id = 'new-policy-id'; name = '[IHD] Linux Name Only Compliance Policy' } }
+                        )
+                    }
+                }
+            } -ModuleName IntuneHydrationKit
+
+            $result = Import-IntuneCompliancePolicy -Platform Linux
+
+            $result | Should -HaveCount 1
+            $result[0].Action | Should -Be 'Created'
+            $script:capturedLinuxBatchBody.requests[0].url | Should -Be '/deviceManagement/compliancePolicies'
+            $script:capturedLinuxBatchBody.requests[0].body.name | Should -Be '[IHD] Linux Name Only Compliance Policy'
+            $script:capturedLinuxBatchBody.requests[0].body.PSObject.Properties['displayName'] | Should -BeNullOrEmpty
+        }
+
     }
 
     Context 'Create Mode - Custom Compliance Policy Scripts' {
@@ -323,6 +378,68 @@ Describe 'Import-IntuneCompliancePolicy' {
                 $Method -eq 'POST' -and $Uri -eq 'beta/deviceManagement/deviceComplianceScripts'
             } -Times 1
         }
+
+        It 'Should not create compliance scripts when custom compliance rules are missing' {
+            Mock Get-FilteredTemplates {
+                @([PSCustomObject]@{ FullName = 'TestPath\Custom-A.json'; Name = 'Custom-A.json' })
+            } -ModuleName IntuneHydrationKit
+
+            Mock Get-Content {
+                New-TestCustomComplianceTemplateJson -PolicyName 'Custom Policy A' -OmitRules
+            } -ModuleName IntuneHydrationKit
+
+            Mock Get-GraphPagedResults -ModuleName IntuneHydrationKit
+            Mock Invoke-MgGraphRequest {
+                param($Method, $Uri)
+
+                if ($Method -eq 'GET') {
+                    return @{ value = @() }
+                }
+                if ($Method -eq 'POST') {
+                    throw "Unexpected POST to $Uri"
+                }
+            } -ModuleName IntuneHydrationKit
+
+            $result = Import-IntuneCompliancePolicy -Platform Windows
+
+            $result | Should -HaveCount 1
+            $result[0].Action | Should -Be 'Failed'
+            $result[0].Status | Should -Be 'Missing rules in deviceCompliancePolicyScriptDefinition'
+            Should -Invoke Invoke-MgGraphRequest -ModuleName IntuneHydrationKit -ParameterFilter {
+                $Method -eq 'POST'
+            } -Times 0
+        }
+
+        It 'Should not create compliance scripts when detection script content is missing' {
+            Mock Get-FilteredTemplates {
+                @([PSCustomObject]@{ FullName = 'TestPath\Custom-A.json'; Name = 'Custom-A.json' })
+            } -ModuleName IntuneHydrationKit
+
+            Mock Get-Content {
+                New-TestCustomComplianceTemplateJson -PolicyName 'Custom Policy A' -OmitDetectionScriptContent
+            } -ModuleName IntuneHydrationKit
+
+            Mock Get-GraphPagedResults -ModuleName IntuneHydrationKit
+            Mock Invoke-MgGraphRequest {
+                param($Method, $Uri)
+
+                if ($Method -eq 'GET') {
+                    return @{ value = @() }
+                }
+                if ($Method -eq 'POST') {
+                    throw "Unexpected POST to $Uri"
+                }
+            } -ModuleName IntuneHydrationKit
+
+            $result = Import-IntuneCompliancePolicy -Platform Windows
+
+            $result | Should -HaveCount 1
+            $result[0].Action | Should -Be 'Failed'
+            $result[0].Status | Should -Be 'Missing detectionScriptContentBase64 in deviceCompliancePolicyScriptDefinition'
+            Should -Invoke Invoke-MgGraphRequest -ModuleName IntuneHydrationKit -ParameterFilter {
+                $Method -eq 'POST'
+            } -Times 0
+        }
     }
 
     Context 'WhatIf Support' {
@@ -393,14 +510,17 @@ Describe 'Import-IntuneCompliancePolicy' {
             } -ModuleName IntuneHydrationKit
 
             Mock Invoke-MgGraphRequest {
-                param($Method)
-                if ($Method -eq 'GET') {
+                param($Method, $Uri)
+                if ($Method -eq 'GET' -and $Uri -like '*deviceCompliancePolicies*') {
                     return @{
                         value = @(
-                            @{ id = 'policy-1'; displayName = 'Hydration Policy'; description = 'Imported by Intune Hydration Kit' },
+                            @{ id = 'policy-1'; displayName = 'Test Policy'; description = 'Imported by Intune Hydration Kit' },
                             @{ id = 'policy-2'; displayName = 'Manual Policy'; description = 'Created manually' }
                         )
                     }
+                }
+                if ($Method -eq 'GET' -and $Uri -like '*compliancePolicies*') {
+                    return @{ value = @() }
                 }
             } -ModuleName IntuneHydrationKit
 
@@ -408,7 +528,7 @@ Describe 'Import-IntuneCompliancePolicy' {
 
             $deletedPolicies = $result | Where-Object { $_.Action -eq 'WouldDelete' }
             $deletedPolicies.Count | Should -Be 1
-            $deletedPolicies[0].Name | Should -Be 'Hydration Policy'
+            $deletedPolicies[0].Name | Should -Be 'Test Policy'
         }
 
         It 'Should delete policies when RemoveExisting is specified' {
@@ -416,12 +536,15 @@ Describe 'Import-IntuneCompliancePolicy' {
 
             Mock Invoke-MgGraphRequest {
                 param($Method, $Uri)
-                if ($Method -eq 'GET') {
+                if ($Method -eq 'GET' -and $Uri -like '*deviceCompliancePolicies*') {
                     return @{
                         value = @(
                             @{ id = 'policy-1'; displayName = 'Test Policy'; description = 'Imported by Intune Hydration Kit' }
                         )
                     }
+                }
+                if ($Method -eq 'GET' -and $Uri -like '*compliancePolicies*') {
+                    return @{ value = @() }
                 }
                 if ($Method -eq 'POST' -and $Uri -like '*$batch*') {
                     return @{
@@ -437,6 +560,42 @@ Describe 'Import-IntuneCompliancePolicy' {
             $deletedItems = @($result | Where-Object { $_.Action -eq 'Deleted' })
             $deletedItems.Count | Should -Be 1
             $deletedItems[0].Name | Should -Be 'Test Policy'
+        }
+
+        It 'Should not delete tagged compliance policies outside the selected platform templates' {
+            Mock Get-FilteredTemplates {
+                @([PSCustomObject]@{ FullName = 'TestPath\Linux-Compliance.json'; Name = 'Linux-Compliance.json' })
+            } -ModuleName IntuneHydrationKit
+            Mock Get-Content {
+                '{"displayName": "Linux Policy", "name": "Linux Policy", "platforms": "linux", "technologies": "linuxMdm"}'
+            } -ModuleName IntuneHydrationKit
+            Mock Test-HydrationKitObject {
+                param($Description)
+                return $Description -like '*Imported by Intune Hydration Kit*'
+            } -ModuleName IntuneHydrationKit
+            Mock Invoke-MgGraphRequest {
+                param($Method, $Uri)
+                if ($Method -eq 'GET' -and $Uri -like '*deviceCompliancePolicies*') {
+                    return @{
+                        value = @(
+                            @{ id = 'windows-policy-id'; displayName = '[IHD] Windows Policy'; description = 'Imported by Intune Hydration Kit' }
+                        )
+                    }
+                }
+                if ($Method -eq 'GET' -and $Uri -like '*compliancePolicies*') {
+                    return @{
+                        value = @(
+                            @{ id = 'linux-policy-id'; name = '[IHD] Linux Policy'; description = 'Imported by Intune Hydration Kit' }
+                        )
+                    }
+                }
+            } -ModuleName IntuneHydrationKit
+
+            $result = Import-IntuneCompliancePolicy -Platform Linux -RemoveExisting -WhatIf
+
+            $deletedPolicies = @($result | Where-Object { $_.Action -eq 'WouldDelete' -and $_.Type -eq 'CompliancePolicy' })
+            $deletedPolicies | Should -HaveCount 1
+            $deletedPolicies[0].Name | Should -Be '[IHD] Linux Policy'
         }
 
         It 'Should delete only tagged custom compliance scripts that match selected templates' {
@@ -459,26 +618,29 @@ Describe 'Import-IntuneCompliancePolicy' {
                 }
             } -ModuleName IntuneHydrationKit
             Mock Get-GraphPagedResults {
-                param($Uri, $ProcessItems)
+                param($Uri)
 
-                $Uri | Should -BeLike '*deviceComplianceScripts*'
-                & $ProcessItems @(
-                    @{
-                        id          = 'matching-script-id'
-                        displayName = '[IHD] Shared Compliance Script'
-                        description = 'Imported by Intune Hydration Kit'
-                    }
-                    @{
-                        id          = 'other-script-id'
-                        displayName = '[IHD] Other Compliance Script'
-                        description = 'Imported by Intune Hydration Kit'
-                    }
-                    @{
-                        id          = 'manual-script-id'
-                        displayName = '[IHD] Shared Compliance Script Manual'
-                        description = 'Created manually'
-                    }
-                )
+                if ($Uri -like '*deviceComplianceScripts*') {
+                    return @(
+                        @{
+                            id          = 'matching-script-id'
+                            displayName = '[IHD] Shared Compliance Script'
+                            description = 'Imported by Intune Hydration Kit'
+                        }
+                        @{
+                            id          = 'other-script-id'
+                            displayName = '[IHD] Other Compliance Script'
+                            description = 'Imported by Intune Hydration Kit'
+                        }
+                        @{
+                            id          = 'manual-script-id'
+                            displayName = '[IHD] Shared Compliance Script Manual'
+                            description = 'Created manually'
+                        }
+                    )
+                } elseif ($Uri -like '*reusablePolicySettings*') {
+                    return @()
+                }
             } -ModuleName IntuneHydrationKit
             Mock Invoke-GraphBatchOperation {
                 param($Items, $Operation, $BaseUrl, $ResultType)
@@ -499,6 +661,7 @@ Describe 'Import-IntuneCompliancePolicy' {
             $deletedItems[0].Type | Should -Be 'ComplianceScript'
             Should -Invoke Invoke-GraphBatchOperation -ModuleName IntuneHydrationKit -Times 1
         }
+
     }
 
     Context 'Error Handling' {

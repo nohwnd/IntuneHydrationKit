@@ -70,10 +70,10 @@ function Get-HydrationGraphWorkloadAccessProbe {
         ($linuxScriptPlatforms -contains 'All' -or $linuxScriptPlatforms -contains 'Linux')) {
         $probes.Add(@{
                 Workload      = 'Linux Scripts'
-                Endpoint      = 'beta/deviceManagement/deviceShellScripts'
-                Uri           = 'beta/deviceManagement/deviceShellScripts?$top=1&$select=id'
-                RequiredScope = 'DeviceManagementScripts.ReadWrite.All'
-                RoleHint      = 'Use a Global Administrator account with active Intune device script access; PIM-elevated roles can still be rejected by the downstream Intune service.'
+                Endpoint      = 'beta/deviceManagement/configurationPolicies'
+                Uri           = "beta/deviceManagement/configurationPolicies?`$select=id,name,templateReference&`$filter=templateReference/TemplateFamily eq 'deviceConfigurationScripts'&`$top=1"
+                RequiredScope = 'DeviceManagementConfiguration.ReadWrite.All'
+                RoleHint      = 'Use a Global Administrator account with active Intune configuration policy access; PIM-elevated roles can still be rejected by the downstream Intune service.'
             })
     }
 

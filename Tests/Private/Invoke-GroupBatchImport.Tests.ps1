@@ -538,6 +538,16 @@ Describe 'Invoke-GroupBatchImport' {
     }
 
     Context 'When deleting groups (Delete mode)' {
+        It 'Should not list or delete groups when scoped known names are empty' {
+            $knownNames = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            Mock Invoke-MgGraphRequest
+
+            $result = Invoke-GroupBatchImport -GroupType 'Dynamic' -Delete -KnownNames $knownNames
+
+            $result | Should -BeNullOrEmpty
+            Should -Invoke Invoke-MgGraphRequest -Times 0
+        }
+
         It 'Should return empty result when no groups found to delete' {
             Mock Invoke-MgGraphRequest -ParameterFilter { $Method -eq 'GET' } {
                 return @{ value = @() }

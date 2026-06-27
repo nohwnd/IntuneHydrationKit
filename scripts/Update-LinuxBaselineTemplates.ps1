@@ -13,24 +13,25 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 
-function Get-GitHubFileText {
+function Get-SourceFileText {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
-        [string]$Repo,
-
-        [Parameter(Mandatory)]
-        [string]$Ref,
+        [string]$SourceRoot,
 
         [Parameter(Mandatory)]
         [string]$Path
     )
 
-    $uri = "https://api.github.com/repos/$Repo/contents/$Path`?ref=$Ref"
-    $response = Invoke-RestMethod -Method GET -Uri $uri -ErrorAction Stop
-    $base64 = ([string]$response.content) -replace '\s', ''
-    return [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($base64))
+    $sourcePath = Join-Path -Path $SourceRoot -ChildPath $Path
+    if (-not (Test-Path -Path $sourcePath)) {
+        Write-Error "Source file not found: $Path"
+        return
+    }
+
+    return Get-Content -Path $sourcePath -Raw -Encoding utf8
 }
 
 function ConvertTo-Base64Utf8 {
@@ -105,54 +106,78 @@ $linuxScriptTemplates = @(
     @{ FileName = 'Linux-Default-Configuration-Set-Device-Name.json'; DisplayName = 'Linux - Default - Configuration - Set Device Name'; ScriptPath = 'configuration/set_device_name.sh' }
 )
 
-$compliancePath = Join-Path -Path $TemplateRoot -ChildPath 'Compliance'
-foreach ($template in $complianceTemplates) {
-    $scriptText = Get-GitHubFileText -Repo $SourceRepo -Ref $Branch -Path $template.ScriptPath
-    $rules = Get-GitHubFileText -Repo $SourceRepo -Ref $Branch -Path $template.RulePath | ConvertFrom-Json
-    $sourceUrl = "https://github.com/$SourceRepo/blob/$Branch/$($template.ScriptPath)"
+$tempBase = Join-Path -Path ([System.IO.Path]::GetTempPath()) -ChildPath "LinuxBaseline-Update-$(Get-Random)"
+$zipPath = Join-Path -Path $tempBase -ChildPath 'IntuneLinuxBaseline.zip'
+$extractPath = Join-Path -Path $tempBase -ChildPath 'upstream'
+$zipUrl = "https://github.com/$SourceRepo/archive/refs/heads/$Branch.zip"
 
-    $output = [ordered]@{
-        displayName                            = $template.DisplayName
-        name                                   = $template.DisplayName
-        description                            = "Linux custom compliance from IntuneLinuxBaseline. Source: $sourceUrl"
-        platforms                              = 'linux'
-        technologies                           = 'linuxMdm'
-        roleScopeTagIds                        = @('0')
-        settings                               = @()
-        deviceCompliancePolicyScript           = @{}
-        deviceCompliancePolicyScriptDefinition = [ordered]@{
-            displayName                  = $template.ScriptName
-            description                  = "Discovery script from IntuneLinuxBaseline. Source: $sourceUrl"
-            detectionScriptContentBase64 = ConvertTo-Base64Utf8 -Text $scriptText
-            enforceSignatureCheck        = $false
-            publisher                    = 'Intune Hydration Kit'
-            runAs32Bit                   = $false
-            runAsAccount                 = 'user'
-            rules                        = $rules
+try {
+    $null = New-Item -Path $tempBase -ItemType Directory -Force
+    Write-Output "Downloading IntuneLinuxBaseline from $zipUrl"
+    Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -ErrorAction Stop
+
+    Write-Output 'Extracting source archive'
+    Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+
+    $sourceRoot = Get-ChildItem -Path $extractPath -Directory | Select-Object -First 1
+    if (-not $sourceRoot) {
+        Write-Error "Failed to find extracted source folder in $extractPath"
+        return
+    }
+
+    $compliancePath = Join-Path -Path $TemplateRoot -ChildPath 'Compliance'
+    foreach ($template in $complianceTemplates) {
+        $scriptText = Get-SourceFileText -SourceRoot $sourceRoot.FullName -Path $template.ScriptPath
+        $rules = Get-SourceFileText -SourceRoot $sourceRoot.FullName -Path $template.RulePath | ConvertFrom-Json
+        $sourceUrl = "https://github.com/$SourceRepo/blob/$Branch/$($template.ScriptPath)"
+
+        $output = [ordered]@{
+            displayName                            = $template.DisplayName
+            name                                   = $template.DisplayName
+            description                            = "Linux custom compliance from IntuneLinuxBaseline. Source: $sourceUrl"
+            platforms                              = 'linux'
+            technologies                           = 'linuxMdm'
+            roleScopeTagIds                        = @('0')
+            settings                               = @()
+            deviceCompliancePolicyScript           = @{}
+            deviceCompliancePolicyScriptDefinition = [ordered]@{
+                displayName                  = $template.ScriptName
+                description                  = "Discovery script from IntuneLinuxBaseline. Source: $sourceUrl"
+                detectionScriptContentBase64 = ConvertTo-Base64Utf8 -Text $scriptText
+                enforceSignatureCheck        = $false
+                publisher                    = 'Intune Hydration Kit'
+                runAs32Bit                   = $false
+                runAsAccount                 = 'user'
+                rules                        = $rules
+            }
         }
+
+        Save-JsonTemplate -InputObject $output -Path (Join-Path -Path $compliancePath -ChildPath $template.FileName)
     }
 
-    Save-JsonTemplate -InputObject $output -Path (Join-Path -Path $compliancePath -ChildPath $template.FileName)
-}
+    $linuxScriptsPath = Join-Path -Path $TemplateRoot -ChildPath 'LinuxScripts'
+    foreach ($template in $linuxScriptTemplates) {
+        $scriptText = Get-SourceFileText -SourceRoot $sourceRoot.FullName -Path $template.ScriptPath
+        $sourceUrl = "https://github.com/$SourceRepo/blob/$Branch/$($template.ScriptPath)"
+        $sourceFileName = Split-Path -Path $template.ScriptPath -Leaf
 
-$linuxScriptsPath = Join-Path -Path $TemplateRoot -ChildPath 'LinuxScripts'
-foreach ($template in $linuxScriptTemplates) {
-    $scriptText = Get-GitHubFileText -Repo $SourceRepo -Ref $Branch -Path $template.ScriptPath
-    $sourceUrl = "https://github.com/$SourceRepo/blob/$Branch/$($template.ScriptPath)"
-    $sourceFileName = Split-Path -Path $template.ScriptPath -Leaf
+        $output = [ordered]@{
+            displayName                 = $template.DisplayName
+            description                 = "Linux configuration script from IntuneLinuxBaseline. Source: $sourceUrl"
+            fileName                    = $sourceFileName
+            platform                    = 'Linux'
+            runAsAccount                = 'system'
+            executionFrequency          = 'PT0S'
+            retryCount                  = 3
+            blockExecutionNotifications = $false
+            roleScopeTagIds             = @('0')
+            scriptContentBase64         = ConvertTo-Base64Utf8 -Text $scriptText
+        }
 
-    $output = [ordered]@{
-        displayName                 = $template.DisplayName
-        description                 = "Linux configuration script from IntuneLinuxBaseline. Source: $sourceUrl"
-        fileName                    = $sourceFileName
-        platform                    = 'Linux'
-        runAsAccount                = 'system'
-        executionFrequency          = 'PT0S'
-        retryCount                  = 3
-        blockExecutionNotifications = $false
-        roleScopeTagIds             = @('0')
-        scriptContentBase64         = ConvertTo-Base64Utf8 -Text $scriptText
+        Save-JsonTemplate -InputObject $output -Path (Join-Path -Path $linuxScriptsPath -ChildPath $template.FileName)
     }
-
-    Save-JsonTemplate -InputObject $output -Path (Join-Path -Path $linuxScriptsPath -ChildPath $template.FileName)
+} finally {
+    if (Test-Path -Path $tempBase -ErrorAction SilentlyContinue) {
+        Remove-Item -Path $tempBase -Recurse -Force -ErrorAction SilentlyContinue *> $null
+    }
 }
