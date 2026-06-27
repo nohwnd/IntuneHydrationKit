@@ -2,30 +2,27 @@
 
 <#
 .SYNOPSIS
-    Synchronises the public-function export lists in the module manifest and root module file.
+    Verifies (and optionally fixes) the public-function export list in the module manifest.
 
 .DESCRIPTION
-    Scans every *.ps1 file under Public/ and updates the FunctionsToExport array in
-    IntuneHydrationKit.psd1 and the $publicFunctions array in IntuneHydrationKit.psm1 to
-    match. Run this after adding or removing a public function to keep the manifest and
-    module file in sync.
+    The expected public surface is every *.ps1 file under Public/ (one function per file) plus a
+    few helper functions that live under Private/ but are exported. The root module
+    (IntuneHydrationKit.psm1) derives this same set at import time, so only the manifest's
+    FunctionsToExport needs to be kept aligned.
+
+    Comparison is by name set, so the hand-curated grouping/comments and ordering in the manifest
+    are preserved. The manifest is only rewritten (as a flat sorted list) when a function is
+    genuinely missing or extra - run this after adding or removing a public function.
 
 .PARAMETER CheckOnly
-    When specified, reports whether exports are out of sync and exits with code 1 if they
-    are, without making any changes. Useful in CI to catch forgotten sync runs.
+    Report whether FunctionsToExport is missing or has extra functions and exit with code 1 if so,
+    without making changes. Useful in CI to catch a forgotten export update.
 
 .EXAMPLE
     ./scripts/Sync-PublicFunctionExports.ps1
-    Updates both IntuneHydrationKit.psd1 and IntuneHydrationKit.psm1 to reflect the
-    current contents of Public/**/*.ps1.
 
 .EXAMPLE
     ./scripts/Sync-PublicFunctionExports.ps1 -CheckOnly
-    Exits with code 1 and prints a message if the export lists are stale; makes no changes.
-
-.EXAMPLE
-    ./scripts/Sync-PublicFunctionExports.ps1 -WhatIf
-    Shows what would be changed without writing to disk.
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
@@ -36,25 +33,49 @@ param(
 $repoRoot = Split-Path -Path $PSScriptRoot -Parent
 $publicPath = Join-Path -Path $repoRoot -ChildPath 'Public'
 $manifestPath = Join-Path -Path $repoRoot -ChildPath 'IntuneHydrationKit.psd1'
-$modulePath = Join-Path -Path $repoRoot -ChildPath 'IntuneHydrationKit.psm1'
 
 if (-not (Test-Path -Path $publicPath -PathType Container)) {
     throw "Public function directory not found: $publicPath"
 }
 
-$publicFunctions = Get-ChildItem -Path $publicPath -Filter '*.ps1' -File -Recurse |
-    Sort-Object -Property BaseName |
-    ForEach-Object { $_.BaseName }
+# Helper functions that live under Private/ but are part of the public surface.
+# Keep this in step with $exportedPrivateHelpers in IntuneHydrationKit.psm1.
+$exportedPrivateHelpers = @(
+    'Get-GraphErrorMessage'
+    'Get-ObfuscatedTenantId'
+    'Get-ResultSummary'
+    'New-HydrationResult'
+    'Test-HydrationKitObject'
+)
 
-if ($publicFunctions.Count -eq 0) {
+$expectedExports = @(
+    Get-ChildItem -Path $publicPath -Filter '*.ps1' -File -Recurse | ForEach-Object { $_.BaseName }
+) + $exportedPrivateHelpers | Sort-Object -Unique
+
+if ($expectedExports.Count -eq 0) {
     throw 'No public function files were found under Public/.'
 }
 
-$functionListText = ($publicFunctions | ForEach-Object { "        '$_'" }) -join ",`n"
+$currentExports = @((Import-PowerShellDataFile -Path $manifestPath).FunctionsToExport) | Sort-Object -Unique
+$difference = Compare-Object -ReferenceObject $expectedExports -DifferenceObject $currentExports
 
+if (-not $difference) {
+    Write-Information 'FunctionsToExport is in sync with Public/**/*.ps1.' -InformationAction Continue
+    return
+}
+
+$missing = @($difference | Where-Object SideIndicator -eq '<=' | ForEach-Object InputObject)
+$extra = @($difference | Where-Object SideIndicator -eq '=>' | ForEach-Object InputObject)
+if ($missing) { Write-Information "Missing from FunctionsToExport: $($missing -join ', ')" -InformationAction Continue }
+if ($extra) { Write-Information "Unexpected in FunctionsToExport: $($extra -join ', ')" -InformationAction Continue }
+
+if ($CheckOnly) {
+    Write-Information 'FunctionsToExport is out of sync. Run scripts/Sync-PublicFunctionExports.ps1 to apply updates.' -InformationAction Continue
+    exit 1
+}
+
+$functionListText = ($expectedExports | ForEach-Object { "        '$_'" }) -join ",`n"
 $manifestContent = Get-Content -Path $manifestPath -Raw -Encoding utf8
-$moduleContent = Get-Content -Path $modulePath -Raw -Encoding utf8
-
 $manifestPattern = 'FunctionsToExport\s*=\s*@\((?s:.*?)\)\s*\r?\n\s*\r?\n\s*# Cmdlets to export from this module'
 $manifestReplacement = @"
 FunctionsToExport = @(
@@ -64,39 +85,12 @@ $functionListText
     # Cmdlets to export from this module
 "@
 
-$modulePattern = '\$publicFunctions\s*=\s*@\((?s:.*?)\)\s*\r?\n\s*\r?\n# Export functions'
-$moduleReplacement = @"
-`$publicFunctions = @(
-$functionListText
-)
-
-# Export functions
-"@
-
 if (-not [regex]::IsMatch($manifestContent, $manifestPattern)) {
     throw "Could not locate FunctionsToExport block in module manifest: $manifestPath"
 }
 
-if (-not [regex]::IsMatch($moduleContent, $modulePattern)) {
-    throw "Could not locate publicFunctions export block in module file: $modulePath"
-}
-
-$newManifestContent = [regex]::Replace($manifestContent, $manifestPattern, $manifestReplacement)
-$newModuleContent = [regex]::Replace($moduleContent, $modulePattern, $moduleReplacement)
-
-if ($newManifestContent -eq $manifestContent -and $newModuleContent -eq $moduleContent) {
-    Write-Information 'Public function exports are already in sync.' -InformationAction Continue
-    return
-}
-
-if ($CheckOnly) {
-    Write-Information 'Public function exports are out of sync. Run scripts/Sync-PublicFunctionExports.ps1 to apply updates.' -InformationAction Continue
-    exit 1
-}
-
-if ($PSCmdlet.ShouldProcess($manifestPath, 'Update FunctionsToExport list') -and
-    $PSCmdlet.ShouldProcess($modulePath, 'Update $publicFunctions export list')) {
+if ($PSCmdlet.ShouldProcess($manifestPath, 'Update FunctionsToExport list')) {
+    $newManifestContent = [regex]::Replace($manifestContent, $manifestPattern, $manifestReplacement)
     Set-Content -Path $manifestPath -Value $newManifestContent -Encoding utf8
-    Set-Content -Path $modulePath -Value $newModuleContent -Encoding utf8
-    Write-Information 'Updated IntuneHydrationKit.psd1 and IntuneHydrationKit.psm1 from Public/**/*.ps1.' -InformationAction Continue
+    Write-Information 'Updated FunctionsToExport in IntuneHydrationKit.psd1 from Public/**/*.ps1.' -InformationAction Continue
 }

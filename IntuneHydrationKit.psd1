@@ -2,7 +2,7 @@
     # Module manifest for IntuneHydrationKit
 
     # Version number of this module
-    ModuleVersion     = '1.1.0'
+    ModuleVersion     = '1.1.1'
 
     # ID used to uniquely identify this module
     GUID              = 'f755f41b-d5fc-48db-8b11-62b7ed71b1cd'
@@ -93,11 +93,12 @@
             # Release notes for this module
             ReleaseNotes = @'
 
-## v1.1.0
+## v1.1.1
 
-- **Device Filters:** Added Windows architecture assignment filters for x64, ARM64, and x86 devices using Intune's native `device.cpuArchitecture` property.
-- **Device Filters:** Added macOS architecture assignment filters for Apple Silicon and Intel devices using Intune's native `device.cpuArchitecture` property.
-- **Template contracts:** Added coverage for bundled dynamic group and device filter templates, including architecture filter rule validation.
+- **Linux baseline hydration:** Added bundled Linux compliance and configuration script templates.
+- **Linux scripts:** Import Linux scripts as configuration policies instead of macOS shell scripts.
+- **Delete safety:** Platform-scoped delete now skips workloads outside the selected platform and platform-neutral workloads during platform-specific deletes.
+- **TUI:** Header now shows the current module version.
 
 '@
         }

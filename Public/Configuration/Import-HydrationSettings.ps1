@@ -20,10 +20,11 @@ function Import-HydrationSettings {
     )
 
     try {
+        $schemaPath = Get-HydrationSettingsSchemaPath
         $schema = Get-HydrationSettingsSchema
         $content = Get-Content -Path $Path -Raw -Encoding utf8
         $settings = $content | ConvertFrom-Json -AsHashtable
-        $settings = Resolve-HydrationSettingsSchema -Settings $settings -Schema $schema
+        $settings = Resolve-HydrationSettingsSchema -Settings $settings -Schema $schema -SchemaPath $schemaPath
 
         Write-HydrationLog -Message "Settings loaded from: $Path" -Level Info
         return $settings

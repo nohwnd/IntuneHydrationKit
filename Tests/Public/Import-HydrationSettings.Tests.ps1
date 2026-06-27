@@ -218,7 +218,7 @@ Describe 'Import-HydrationSettings' {
             $settingsPath = Join-Path $script:TestTempDir 'winget-templateids-string.json'
             $settingsContent | ConvertTo-Json -Depth 10 | Set-Content -Path $settingsPath
 
-            { Import-HydrationSettings -Path $settingsPath } | Should -Throw '*root.mobileApps.templateIds*must be an array*'
+            { Import-HydrationSettings -Path $settingsPath } | Should -Throw '*should be "array"*mobileApps/templateIds*'
         }
 
         It 'Should throw when a required top-level section is missing' {
@@ -237,7 +237,7 @@ Describe 'Import-HydrationSettings' {
             $settingsPath = Join-Path $script:TestTempDir 'missing-imports.json'
             $settingsContent | ConvertTo-Json -Depth 10 | Set-Content -Path $settingsPath
 
-            { Import-HydrationSettings -Path $settingsPath } | Should -Throw '*root.imports*'
+            { Import-HydrationSettings -Path $settingsPath } | Should -Throw '*imports*not present*'
         }
 
         It 'Should throw when environment is outside the schema enum' {
@@ -260,7 +260,7 @@ Describe 'Import-HydrationSettings' {
             $settingsPath = Join-Path $script:TestTempDir 'bad-environment.json'
             $settingsContent | ConvertTo-Json -Depth 10 | Set-Content -Path $settingsPath
 
-            { Import-HydrationSettings -Path $settingsPath } | Should -Throw '*must be one of*'
+            { Import-HydrationSettings -Path $settingsPath } | Should -Throw '*enum*authentication/environment*'
         }
 
         It 'Should throw when clientSecret authentication omits clientSecret' {

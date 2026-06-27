@@ -489,9 +489,11 @@ Describe 'Hydration TUI helpers' {
         }
     }
 
-    It 'Should include the website and attribution in the branded header' {
+    It 'Should include the website, version, and attribution in the branded header' {
         InModuleScope IntuneHydrationKit {
             Mock Test-HydrationTuiArrowKeySupport { $false } -ModuleName IntuneHydrationKit
+            $manifest = Import-PowerShellDataFile -Path (Join-Path $script:ModuleRoot 'IntuneHydrationKit.psd1')
+            $version = $manifest.ModuleVersion.ToString()
 
             $writer = [System.IO.StringWriter]::new()
             $originalOutput = [Console]::Out
@@ -504,6 +506,7 @@ Describe 'Hydration TUI helpers' {
 
             $output = $writer.ToString()
             $output | Should -Match 'IntuneHydrationKit\.com'
+            $output | Should -Match "Version $([regex]::Escape($version))"
             $output | Should -Match 'Made By Jorgeasaurus'
         }
     }

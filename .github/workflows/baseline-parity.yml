@@ -1,0 +1,75 @@
+name: Baseline Parity Check
+
+on:
+  schedule:
+    - cron: '0 13 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: baseline-parity
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    name: Compare bundled ${{ matrix.baseline_name }} templates
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - baseline_name: IntuneLinuxBaseline
+            update_script: ./scripts/Update-LinuxBaselineTemplates.ps1
+            template_paths_json: '["Templates/Compliance","Templates/LinuxScripts"]'
+            artifact_prefix: intunelinuxbaseline
+            failure_message: Bundled IntuneLinuxBaseline templates drifted from upstream.
+          - baseline_name: OpenIntuneBaseline
+            update_script: ./scripts/Update-OpenIntuneBaselineTemplates.ps1
+            template_paths_json: '["Templates/OpenIntuneBaseline"]'
+            artifact_prefix: openintunebaseline
+            failure_message: Bundled OpenIntuneBaseline templates drifted from upstream.
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Compare bundled templates
+        id: comparison
+        shell: pwsh
+        run: |
+          $null = New-Item -Path ./build -ItemType Directory -Force
+          & '${{ matrix.update_script }}' 2>&1 |
+            Tee-Object -FilePath ./build/${{ matrix.artifact_prefix }}-update.log
+
+          $templatePathSpec = '${{ matrix.template_paths_json }}' | ConvertFrom-Json
+          $null = New-Item -Path ./build/${{ matrix.artifact_prefix }}-diff.txt -ItemType File -Force
+          git diff --name-status -- $templatePathSpec |
+            Add-Content -Path ./build/${{ matrix.artifact_prefix }}-diff.txt -Encoding utf8
+          $null = New-Item -Path ./build/${{ matrix.artifact_prefix }}-diff.patch -ItemType File -Force
+          git diff -- $templatePathSpec |
+            Add-Content -Path ./build/${{ matrix.artifact_prefix }}-diff.patch -Encoding utf8
+
+          $diffSummary = Get-Content -Path ./build/${{ matrix.artifact_prefix }}-diff.txt -Raw
+          $hasDifferences = -not [string]::IsNullOrWhiteSpace($diffSummary)
+          "has_differences=$($hasDifferences.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+      - name: Upload comparison artifacts
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: ${{ matrix.artifact_prefix }}-comparison
+          path: |
+            build/${{ matrix.artifact_prefix }}-update.log
+            build/${{ matrix.artifact_prefix }}-diff.txt
+            build/${{ matrix.artifact_prefix }}-diff.patch
+          if-no-files-found: warn
+
+      - name: Fail on drift
+        if: steps.comparison.outputs.has_differences == 'true'
+        shell: pwsh
+        run: |
+          Write-Error '${{ matrix.failure_message }}'

@@ -425,111 +425,22 @@ function Import-CISBaseline {
                 }
             }
 
-            # Prepare import body
-            $importBody = Copy-DeepObject -InputObject $policyContent
-            Remove-ReadOnlyGraphProperties -InputObject $importBody -AdditionalProperties @(
-                'supportsScopeTags', 'deviceManagementApplicabilityRuleOsEdition',
-                'deviceManagementApplicabilityRuleOsVersion',
-                'deviceManagementApplicabilityRuleDeviceMode',
-                '@odata.id', '@odata.editLink',
-                'creationSource', 'settingCount', 'priorityMetaData',
-                'assignments', 'settingDefinitions', 'isAssigned'
-            )
-
-            # Add hydration kit tag to description
-            $importBody.description = New-HydrationDescription -ExistingText $importBody.description
-
-            # Apply import prefix to body properties
-            if ($importBody.displayName) { $importBody.displayName = $displayName }
-            if ($importBody.name) { $importBody.name = $displayName }
-
-            if ($typeEndpoint -eq 'deviceManagement/groupPolicyConfigurations' -and $importBody.PSObject.Properties['definitionValues']) {
-                $importBody.definitionValues = @($importBody.definitionValues)
-                foreach ($definitionValue in $importBody.definitionValues) {
-                    if ($definitionValue -and $definitionValue.PSObject.Properties['presentationValues']) {
-                        $definitionValue.presentationValues = @($definitionValue.presentationValues)
-                    }
+            $importBody = ConvertTo-HydrationBaselineImportBody `
+                -PolicyContent $policyContent `
+                -DisplayName $displayName `
+                -Endpoint $typeEndpoint `
+                -AdditionalReadOnlyProperties @(
+                    'supportsScopeTags', 'deviceManagementApplicabilityRuleOsEdition',
+                    'deviceManagementApplicabilityRuleOsVersion',
+                    'deviceManagementApplicabilityRuleDeviceMode',
+                    '@odata.id', '@odata.editLink',
+                    'creationSource', 'settingCount', 'priorityMetaData',
+                    'assignments', 'settingDefinitions', 'isAssigned'
+                ) `
+                -SettingTransform {
+                    param($setting)
+                    Update-CISSecretSettingValues -Node $setting
                 }
-            }
-
-            # Remove @odata metadata and action properties except @odata.type
-            $metadataProps = @($importBody.PSObject.Properties | Where-Object {
-                    ($_.Name -match '^@odata\.' -and $_.Name -ne '@odata.type') -or
-                    ($_.Name -match '@odata\.') -or
-                    ($_.Name -match '^#microsoft\.graph\.')
-                })
-            foreach ($prop in $metadataProps) {
-                if ($prop.Name -ne '@odata.type') {
-                    $importBody.PSObject.Properties.Remove($prop.Name)
-                }
-            }
-
-            # Settings Catalog policies need special clean body construction
-            if ($typeEndpoint -eq 'deviceManagement/configurationPolicies') {
-                $cleanBody = @{
-                    name         = $importBody.name
-                    description  = $importBody.description
-                    platforms    = $importBody.platforms
-                    technologies = $importBody.technologies
-                    settings     = @()
-                }
-
-                if ($importBody.roleScopeTagIds) {
-                    $cleanBody.roleScopeTagIds = $importBody.roleScopeTagIds
-                }
-                if ($importBody.templateReference -and $importBody.templateReference.templateId) {
-                    $cleanBody.templateReference = @{
-                        templateId = $importBody.templateReference.templateId
-                    }
-                }
-
-                if ($importBody.settings) {
-                    foreach ($setting in $importBody.settings) {
-                        $cleanSetting = $setting | ConvertTo-Json -Depth 100 -Compress | ConvertFrom-Json
-
-                        $propsToRemove = @($cleanSetting.PSObject.Properties | Where-Object {
-                                $_.Name -eq 'id' -or $_.Name -match '@odata\.' -or $_.Name -eq 'settingDefinitions'
-                            })
-                        foreach ($prop in $propsToRemove) {
-                            $cleanSetting.PSObject.Properties.Remove($prop.Name)
-                        }
-
-                        Update-CISSecretSettingValues -Node $cleanSetting
-                        $cleanBody.settings += $cleanSetting
-                    }
-                }
-
-                $importBody = [PSCustomObject]$cleanBody
-            }
-
-            # Compliance policies: clean scheduledActionsForRule
-            if ($importBody.scheduledActionsForRule) {
-                $cleanedActions = @()
-                foreach ($action in $importBody.scheduledActionsForRule) {
-                    $cleanAction = @{
-                        ruleName = $action.ruleName
-                    }
-                    if ($action.scheduledActionConfigurations) {
-                        $cleanConfigs = @()
-                        foreach ($config in $action.scheduledActionConfigurations) {
-                            $ccList = @()
-                            if ($null -ne $config.notificationMessageCCList -and $config.notificationMessageCCList.Count -gt 0) {
-                                $ccList = @($config.notificationMessageCCList)
-                            }
-                            $cleanConfig = @{
-                                actionType                = $config.actionType
-                                gracePeriodHours          = [int]$config.gracePeriodHours
-                                notificationTemplateId    = if ($config.notificationTemplateId) { $config.notificationTemplateId } else { "" }
-                                notificationMessageCCList = $ccList
-                            }
-                            $cleanConfigs += $cleanConfig
-                        }
-                        $cleanAction.scheduledActionConfigurations = $cleanConfigs
-                    }
-                    $cleanedActions += $cleanAction
-                }
-                $importBody.scheduledActionsForRule = $cleanedActions
-            }
 
             $policiesToCreate += @{
                 Name     = $displayName

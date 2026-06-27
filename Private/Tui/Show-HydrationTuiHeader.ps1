@@ -27,6 +27,10 @@ function Show-HydrationTuiHeader {
     $tagline = 'Intune Hydration Kit'
     [Console]::WriteLine("$(' ' * (& $centerPad $tagline.Length))$($palette.Muted)$tagline$($palette.Reset)")
 
+    $moduleVersion = $ExecutionContext.SessionState.Module.Version
+    $version = if ($moduleVersion) { "Version $moduleVersion" } else { 'Version unknown' }
+    [Console]::WriteLine("$(' ' * (& $centerPad $version.Length))$($palette.Muted)$version$($palette.Reset)")
+
     $websiteLabel = 'IntuneHydrationKit.com'
     $websiteUrl = 'https://IntuneHydrationKit.com'
     $websiteText = $websiteLabel

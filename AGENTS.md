@@ -126,8 +126,7 @@ All JSON templates for import operations:
 - `scripts/Compare-OpenIntuneBaseline.ps1` - Compare baseline versions
 - `scripts/Export-ConditionalAccessTemplates.ps1` - Export CA templates from tenant
 - `scripts/Format-AllFiles.ps1` - Code formatting utility
-- `scripts/Set-AllAppsRequiredOnAllDevices.ps1` - Assign apps as required for all devices
-- `scripts/Set-WindowsAppsAvailableToAllUsers.ps1` - Assign Windows apps as available for all users
+- `scripts/Set-IntuneAppAssignment.ps1` - Assign apps (Required/Available) to All Devices/All Users
 
 ### Test Structure
 

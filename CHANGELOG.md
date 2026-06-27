@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-06-27
+
+### Added
+
+- **Linux baseline hydration**: Added bundled Linux compliance and configuration script templates.
+- **TUI**: Header now shows the current module version.
+
+### Fixed
+
+- **Linux scripts**: Import Linux scripts as configuration policies instead of macOS shell scripts.
+- **Delete safety**: Platform-scoped delete now skips workloads outside the selected platform and platform-neutral workloads during platform-specific deletes.
+
 ## [1.1.0] - 2026-06-26
 
 ### Added

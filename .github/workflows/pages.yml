@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - docs/**
+      - Public/**
+      - IntuneHydrationKit.psd1
+      - IntuneHydrationKit.psm1
       - mkdocs.yml
       - .github/workflows/pages.yml
   workflow_dispatch:
@@ -35,6 +38,29 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install mkdocs mkdocs-material
+
+      - name: Install PowerShell Docs Dependencies
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Microsoft.Graph.Authentication -Scope CurrentUser -MinimumVersion 2.0.0 -Force -AllowClobber
+          Install-Module -Name platyPS -Scope CurrentUser -RequiredVersion 0.14.2 -Force -AllowClobber
+
+      - name: Generate Command Reference
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Import-Module ./IntuneHydrationKit.psd1 -Force
+          Import-Module platyPS -RequiredVersion 0.14.2
+
+          $commandNames = Select-String -Path ./mkdocs.yml -Pattern 'platyps/([A-Za-z0-9-]+)\.md' -AllMatches |
+            ForEach-Object { $_.Matches } |
+            ForEach-Object { $_.Groups[1].Value } |
+            Sort-Object -Unique
+
+          Remove-Item -Path ./docs/platyps -Recurse -Force -ErrorAction SilentlyContinue
+          $null = New-Item -Path ./docs/platyps -ItemType Directory -Force
+          New-MarkdownHelp -Command $commandNames -OutputFolder ./docs/platyps -Force | Out-Null
 
       - name: Build Site
         run: mkdocs build --strict

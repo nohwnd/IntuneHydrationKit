@@ -478,8 +478,8 @@ Install-Module Microsoft.Graph.Authentication -Force
 │   ├── StaticGroups/
 │   ├── MobileApps/
 │   └── Notifications/
-├── Tests/                         # 67 Pester test files
-├── docs/                          # MkDocs and PlatyPS reference docs
+├── Tests/                         # Pester test suite
+├── docs/                          # MkDocs source; command reference is generated in Pages workflow
 └── scripts/                       # Maintenance and assignment helpers
 ```
 

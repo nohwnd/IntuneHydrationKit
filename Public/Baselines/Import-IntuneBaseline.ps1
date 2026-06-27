@@ -394,109 +394,22 @@ function Import-IntuneBaseline {
                         continue
                     }
 
-                    # Prepare import body - remove read-only and assignment properties
-                    $importBody = Copy-DeepObject -InputObject $policyContent
-                    Remove-ReadOnlyGraphProperties -InputObject $importBody -AdditionalProperties @(
-                        'supportsScopeTags', 'deviceManagementApplicabilityRuleOsEdition',
-                        'deviceManagementApplicabilityRuleOsVersion',
-                        'deviceManagementApplicabilityRuleDeviceMode',
-                        '@odata.id', '@odata.editLink',
-                        'creationSource', 'settingCount', 'priorityMetaData',
-                        'assignments', 'settingDefinitions', 'isAssigned'
-                    )
-
-                    # Add hydration kit tag to description
-                    $importBody.description = New-HydrationDescription -ExistingText $importBody.description
-
-                    # Apply import prefix to body properties
-                    if ($importBody.displayName) { $importBody.displayName = $displayName }
-                    if ($importBody.name) { $importBody.name = $displayName }
-
-                    # Remove properties with @odata annotations (metadata) except @odata.type
-                    # Also remove #microsoft.graph.* action properties
-                    $metadataProps = @($importBody.PSObject.Properties | Where-Object {
-                            ($_.Name -match '^@odata\.' -and $_.Name -ne '@odata.type') -or
-                            ($_.Name -match '@odata\.') -or
-                            ($_.Name -match '^#microsoft\.graph\.')
-                        })
-                    foreach ($prop in $metadataProps) {
-                        if ($prop.Name -ne '@odata.type') {
-                            $importBody.PSObject.Properties.Remove($prop.Name)
-                        }
-                    }
-
-                    # Special handling for Settings Catalog (configurationPolicies)
                     if ($typeEndpoint -eq 'deviceManagement/configurationPolicies') {
                         Write-Verbose "  Processing Settings Catalog policy: $displayName"
-
-                        # Build a clean body with only the required properties
-                        $cleanBody = @{
-                            name         = $importBody.name
-                            description  = $importBody.description
-                            platforms    = $importBody.platforms
-                            technologies = $importBody.technologies
-                            settings     = @()
-                        }
-
-                        # Add optional properties if present
-                        if ($importBody.roleScopeTagIds) {
-                            $cleanBody.roleScopeTagIds = $importBody.roleScopeTagIds
-                        }
-                        if ($importBody.templateReference -and $importBody.templateReference.templateId) {
-                            $cleanBody.templateReference = @{
-                                templateId = $importBody.templateReference.templateId
-                            }
-                        }
-
-                        # Clean settings - remove id and odata navigation properties from each setting
-                        if ($importBody.settings) {
-                            foreach ($setting in $importBody.settings) {
-                                $cleanSetting = $setting | ConvertTo-Json -Depth 100 -Compress | ConvertFrom-Json
-
-                                # Remove read-only properties from the setting
-                                $propsToRemove = @($cleanSetting.PSObject.Properties | Where-Object {
-                                        $_.Name -eq 'id' -or $_.Name -match '@odata\.' -or $_.Name -eq 'settingDefinitions'
-                                    })
-                                foreach ($prop in $propsToRemove) {
-                                    $cleanSetting.PSObject.Properties.Remove($prop.Name)
-                                }
-
-                                $cleanBody.settings += $cleanSetting
-                            }
-                        }
-
-                        $importBody = [PSCustomObject]$cleanBody
                     }
 
-                    # Clean up scheduledActionsForRule - remove nested @odata.context and IDs
-                    if ($importBody.scheduledActionsForRule) {
-                        $cleanedActions = @()
-                        foreach ($action in $importBody.scheduledActionsForRule) {
-                            $cleanAction = @{
-                                ruleName = $action.ruleName
-                            }
-                            if ($action.scheduledActionConfigurations) {
-                                $cleanConfigs = @()
-                                foreach ($config in $action.scheduledActionConfigurations) {
-                                    # Ensure notificationMessageCCList is always an array, never null
-                                    $ccList = @()
-                                    if ($null -ne $config.notificationMessageCCList -and $config.notificationMessageCCList.Count -gt 0) {
-                                        $ccList = @($config.notificationMessageCCList)
-                                    }
-                                    $cleanConfig = @{
-                                        actionType                = $config.actionType
-                                        gracePeriodHours          = [int]$config.gracePeriodHours
-                                        notificationTemplateId    = if ($config.notificationTemplateId) { $config.notificationTemplateId } else { "" }
-                                        notificationMessageCCList = $ccList
-                                    }
-                                    $cleanConfigs += $cleanConfig
-                                }
-                                $cleanAction.scheduledActionConfigurations = $cleanConfigs
-                            }
-                            $cleanedActions += $cleanAction
-                        }
-                        $importBody.scheduledActionsForRule = $cleanedActions
-                    }
+                    $importBody = ConvertTo-HydrationBaselineImportBody `
+                        -PolicyContent $policyContent `
+                        -DisplayName $displayName `
+                        -Endpoint $typeEndpoint `
+                        -AdditionalReadOnlyProperties @(
+                            'supportsScopeTags', 'deviceManagementApplicabilityRuleOsEdition',
+                            'deviceManagementApplicabilityRuleOsVersion',
+                            'deviceManagementApplicabilityRuleDeviceMode',
+                            '@odata.id', '@odata.editLink',
+                            'creationSource', 'settingCount', 'priorityMetaData',
+                            'assignments', 'settingDefinitions', 'isAssigned'
+                        )
 
                     # Add to collection for batch creation
                     # Store body as JSON string to avoid PowerShell serialization issues with circular references
@@ -574,23 +487,16 @@ function Import-IntuneBaseline {
                     continue
                 }
 
-                # Clean up import properties that shouldn't be sent
-                $importBody = Copy-DeepObject -InputObject $policyContent
-
-                # Remove read-only and system properties
-                Remove-ReadOnlyGraphProperties -InputObject $importBody -AdditionalProperties @(
-                    'supportsScopeTags', 'deviceManagementApplicabilityRuleOsEdition',
-                    'deviceManagementApplicabilityRuleOsVersion',
-                    'deviceManagementApplicabilityRuleDeviceMode',
-                    'creationSource', 'settingCount', 'priorityMetaData'
-                )
-
-                # Add hydration kit tag to description
-                $importBody.description = New-HydrationDescription -ExistingText $importBody.description
-
-                # Apply import prefix to body properties
-                if ($importBody.displayName) { $importBody.displayName = $displayName }
-                if ($importBody.name) { $importBody.name = $displayName }
+                $importBody = ConvertTo-HydrationBaselineImportBody `
+                    -PolicyContent $policyContent `
+                    -DisplayName $displayName `
+                    -Endpoint $endpoint `
+                    -AdditionalReadOnlyProperties @(
+                        'supportsScopeTags', 'deviceManagementApplicabilityRuleOsEdition',
+                        'deviceManagementApplicabilityRuleOsVersion',
+                        'deviceManagementApplicabilityRuleDeviceMode',
+                        'creationSource', 'settingCount', 'priorityMetaData'
+                    )
 
                 # Add to collection for batch creation
                 # Store body as JSON string to avoid PowerShell serialization issues with circular references
